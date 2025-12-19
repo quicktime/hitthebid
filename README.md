@@ -5,10 +5,10 @@ Real-time orderflow visualization for NQ/ES futures. Rust backend streams from D
 ## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+┌─────────────────┐      ┌──────────────┐     ┌─────────────┐
 │   Databento     │────▶│  Rust Server │────▶│   Browser   │
-│  (CME Globex)   │     │  (WebSocket) │     │  (Canvas)   │
-└─────────────────┘     └──────────────┘     └─────────────┘
+│  (CME Globex)   │      │  (WebSocket) │     │  (Canvas)   │
+└─────────────────┘      └──────────────┘     └─────────────┘
 ```
 
 - **Rust backend** - Connects to Databento, parses trades, broadcasts via WebSocket
