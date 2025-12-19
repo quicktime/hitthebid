@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLOW | NQ/ES Orderflow Bubbles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #111;
+      --bg-tertiary: #1a1a1a;
+      --text-primary: #fff;
+      --text-secondary: rgba(255,255,255,0.7);
+      --text-muted: rgba(255,255,255,0.4);
+      --accent-green: #00e676;
+      --accent-red: #ff5252;
+      --accent-blue: #448aff;
+      --border: rgba(255,255,255,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { 
+      height: 100%; 
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+    .app { display: flex; flex-direction: column; height: 100%; }
+    
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      gap: 20px;
+    }
+    .header-left { display: flex; align-items: center; gap: 20px; }
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon { color: var(--accent-blue); font-size: 22px; }
+    
+    .symbols { display: flex; gap: 4px; background: var(--bg-tertiary); padding: 4px; border-radius: 6px; }
+    .symbol-btn {
+      padding: 6px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .symbol-btn:hover { color: var(--text-secondary); background: rgba(255,255,255,0.05); }
+    .symbol-btn.active { background: var(--bg-primary); color: var(--text-primary); }
+    
+    .header-center { flex: 1; display: flex; justify-content: center; }
+    .last-price {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .price-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+    .price-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .price-value.up { color: var(--accent-green); }
+    .price-value.down { color: var(--accent-red); }
+    
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+    .control input {
+      width: 50px;
+      padding: 6px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-primary);
+      text-align: center;
+    }
+    .control input:focus { outline: none; border-color: var(--accent-blue); }
+    
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-red);
+    }
+    .status.connected { color: var(--accent-green); }
+    .status.connected .status-dot { 
+      background: var(--accent-green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* Canvas */
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    #bubbleCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* Footer */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+    }
+    .legend { display: flex; gap: 20px; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .legend-item.buy .legend-dot { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .legend-item.sell .legend-dot { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+    .stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">◉</span>
+          FLOW
+        </div>
+        <div class="symbols">
+          <button class="symbol-btn active" data-symbol="NQ">NQ</button>
+          <button class="symbol-btn" data-symbol="ES">ES</button>
+        </div>
+      </div>
+      
+      <div class="header-center">
+        <div class="last-price">
+          <span class="price-label">LAST</span>
+          <span class="price-value" id="lastPrice">--</span>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <div class="control">
+          <label>MIN SIZE</label>
+          <input type="number" id="minSize" value="1" min="1">
+        </div>
+        <div class="status" id="status">
+          <span class="status-dot"></span>
+          <span class="status-text">CONNECTING</span>
+        </div>
+      </div>
+    </header>
+    
+    <div class="canvas-container">
+      <canvas id="bubbleCanvas"></canvas>
+    </div>
+    
+    <footer class="footer">
+      <div class="legend">
+        <span class="legend-item buy"><span class="legend-dot"></span>BUY AGGRESSION</span>
+        <span class="legend-item sell"><span class="legend-dot"></span>SELL AGGRESSION</span>
+      </div>
+      <div class="stats">
+        <span id="bubbleCount">0 bubbles</span>
+        <span id="tradeCount">0 trades</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // ============== State ==============
+    const state = {
+      bubbles: [],
+      lastPrice: null,
+      prevPrice: null,
+      priceRange: null,
+      minSize: 1,
+      activeSymbol: 'NQ',
+      tradeCount: 0,
+      ws: null,
+      connected: false
+    };
+
+    // ============== Config ==============
+    const config = {
+      maxBubbles: 500,
+      minRadius: 4,
+      maxRadius: 60,
+      sizeScale: 2,
+      fadeSpeed: 0.002,
+      moveSpeed: 0.002,
+      colors: {
+        buy: { fill: 'rgba(0, 230, 118, 0.6)', stroke: 'rgba(0, 230, 118, 0.9)', glow: 'rgba(0, 230, 118, 0.3)' },
+        sell: { fill: 'rgba(255, 82, 82, 0.6)', stroke: 'rgba(255, 82, 82, 0.9)', glow: 'rgba(255, 82, 82, 0.3)' }
+      }
+    };
+
+    // ============== Canvas Setup ==============
+    const canvas = document.getElementById('bubbleCanvas');
+    const ctx = canvas.getContext('2d');
+    let dpr = window.devicePixelRatio || 1;
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      ctx.scale(dpr, dpr);
+    }
+    
+    window.addEventListener('resize', () => {
+      dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      resizeCanvas();
+    });
+    resizeCanvas();
+
+    // ============== WebSocket ==============
+    function connect() {
+      const wsUrl = `ws://${window.location.host}/ws`;
+      state.ws = new WebSocket(wsUrl);
+      
+      state.ws.onopen = () => {
+        console.log('WebSocket connected');
+        updateStatus(true);
+      };
+      
+      state.ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleMessage(msg);
+      };
+      
+      state.ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        updateStatus(false);
+        // Reconnect after 2 seconds
+        setTimeout(connect, 2000);
+      };
+      
+      state.ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+      };
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'Trade':
+          handleTrade(msg);
+          break;
+        case 'Connected':
+          console.log('Connected to symbols:', msg.symbols);
+          break;
+        case 'Error':
+          console.error('Server error:', msg.message);
+          break;
+      }
+    }
+
+    function handleTrade(trade) {
+      // Filter by active symbol
+      if (!trade.symbol.startsWith(state.activeSymbol)) return;
+      
+      state.tradeCount++;
+      
+      // Update last price
+      state.prevPrice = state.lastPrice;
+      state.lastPrice = trade.price;
+      updatePriceDisplay();
+      
+      // Update price range
+      updatePriceRange(trade.price);
+      
+      // Create bubble
+      const bubble = {
+        id: Date.now() + Math.random(),
+        price: trade.price,
+        size: trade.size,
+        side: trade.side,
+        x: 1, // Start at right edge
+        opacity: 1
+      };
+      
+      state.bubbles.push(bubble);
+      
+      // Limit bubbles
+      if (state.bubbles.length > config.maxBubbles) {
+        state.bubbles = state.bubbles.slice(-config.maxBubbles);
+      }
+      
+      updateStats();
+    }
+
+    function updatePriceRange(price) {
+      if (!state.priceRange) {
+        state.priceRange = { min: price - 10, max: price + 10 };
+        return;
+      }
+      
+      const padding = (state.priceRange.max - state.priceRange.min) * 0.1;
+      state.priceRange.min = Math.min(state.priceRange.min, price - padding);
+      state.priceRange.max = Math.max(state.priceRange.max, price + padding);
+    }
+
+    function sendMinSize(size) {
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify({ action: 'set_min_size', min_size: size }));
+      }
+    }
+
+    // ============== UI Updates ==============
+    function updateStatus(connected) {
+      state.connected = connected;
+      const el = document.getElementById('status');
+      el.classList.toggle('connected', connected);
+      el.querySelector('.status-text').textContent = connected ? 'LIVE' : 'OFFLINE';
+    }
+
+    function updatePriceDisplay() {
+      const el = document.getElementById('lastPrice');
+      if (state.lastPrice) {
+        el.textContent = state.lastPrice.toFixed(2);
+        el.classList.remove('up', 'down');
+        if (state.prevPrice) {
+          if (state.lastPrice > state.prevPrice) el.classList.add('up');
+          else if (state.lastPrice < state.prevPrice) el.classList.add('down');
+        }
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('bubbleCount').textContent = `${state.bubbles.length} bubbles`;
+      document.getElementById('tradeCount').textContent = `${state.tradeCount} trades`;
+    }
+
+    // ============== Rendering ==============
+    function render() {
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
+      
+      // Clear
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, width, height);
+      
+      if (!state.priceRange || state.bubbles.length === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.font = '14px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Waiting for trades...', width / 2, height / 2);
+        requestAnimationFrame(render);
+        return;
+      }
+      
+      const { min, max } = state.priceRange;
+      const range = max - min;
+      
+      // Draw price grid
+      drawGrid(width, height, min, max);
+      
+      // Update and draw bubbles
+      state.bubbles = state.bubbles.filter(b => {
+        // Move left and fade
+        b.x -= config.moveSpeed;
+        b.opacity -= config.fadeSpeed;
+        
+        if (b.x < -0.1 || b.opacity <= 0) return false;
+        
+        // Calculate position
+        const x = b.x * width;
+        const y = height - ((b.price - min) / range) * height;
+        const radius = Math.min(config.maxRadius, Math.max(config.minRadius, Math.sqrt(b.size) * config.sizeScale));
+        
+        const colors = config.colors[b.side];
+        
+        // Glow for large trades
+        if (b.size >= 10) {
+          const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 2);
+          gradient.addColorStop(0, colors.glow.replace('0.3', `${0.3 * b.opacity}`));
+          gradient.addColorStop(1, 'transparent');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(x, y, radius * 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
+        // Main bubble
+        ctx.globalAlpha = b.opacity;
+        ctx.fillStyle = colors.fill;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = colors.stroke;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // Size label
+        if (b.size >= 5 && radius > 15) {
+          ctx.fillStyle = `rgba(255,255,255,${0.9 * b.opacity})`;
+          ctx.font = `bold ${Math.min(radius * 0.6, 14)}px "JetBrains Mono", monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(b.size.toString(), x, y);
+        }
+        
+        ctx.globalAlpha = 1;
+        return true;
+      });
+      
+      // Draw current price line
+      if (state.lastPrice) {
+        const y = height - ((state.lastPrice - min) / range) * height;
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      
+      updateStats();
+      requestAnimationFrame(render);
+    }
+
+    function drawGrid(width, height, min, max) {
+      const range = max - min;
+      const rawInterval = range / 8;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(rawInterval)));
+      const normalized = rawInterval / magnitude;
+      
+      let interval;
+      if (normalized < 1.5) interval = magnitude;
+      else if (normalized < 3) interval = 2 * magnitude;
+      else if (normalized < 7) interval = 5 * magnitude;
+      else interval = 10 * magnitude;
+      
+      const startPrice = Math.ceil(min / interval) * interval;
+      
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.textAlign = 'right';
+      
+      for (let price = startPrice; price <= max; price += interval) {
+        const y = height - ((price - min) / range) * height;
+        
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width - 50, y);
+        ctx.stroke();
+        
+        ctx.fillText(price.toFixed(2), width - 8, y + 3);
+      }
+    }
+
+    // ============== Event Listeners ==============
+    document.querySelectorAll('.symbol-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.activeSymbol = btn.dataset.symbol;
+        state.bubbles = [];
+        state.priceRange = null;
+        state.lastPrice = null;
+      });
+    });
+
+    document.getElementById('minSize').addEventListener('change', (e) => {
+      const size = Math.max(1, parseInt(e.target.value) || 1);
+      state.minSize = size;
+      sendMinSize(size);
+    });
+
+    // ============== Start ==============
+    connect();
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
