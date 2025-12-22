@@ -27,6 +27,15 @@ interface ZeroCross {
   price?: number;
 }
 
+interface AbsorptionAlert {
+  timestamp: number;
+  price: number;
+  absorptionType: 'buying' | 'selling';
+  delta: number;
+  strength: number;
+  x: number;
+}
+
 interface VolumeProfileLevel {
   price: number;
   buyVolume: number;
@@ -59,6 +68,39 @@ function playAlertSound(direction: 'bullish' | 'bearish') {
   }
 }
 
+// Audio alert for absorption events - double beep
+function playAbsorptionSound(type: 'buying' | 'selling') {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    // First beep
+    const osc1 = audioContext.createOscillator();
+    const gain1 = audioContext.createGain();
+    osc1.connect(gain1);
+    gain1.connect(audioContext.destination);
+    osc1.frequency.value = type === 'buying' ? 600 : 300;
+    osc1.type = 'triangle';
+    gain1.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+    osc1.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 0.1);
+
+    // Second beep (slightly delayed)
+    const osc2 = audioContext.createOscillator();
+    const gain2 = audioContext.createGain();
+    osc2.connect(gain2);
+    gain2.connect(audioContext.destination);
+    osc2.frequency.value = type === 'buying' ? 700 : 350;
+    osc2.type = 'triangle';
+    gain2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+    osc2.start(audioContext.currentTime + 0.15);
+    osc2.stop(audioContext.currentTime + 0.25);
+  } catch (e) {
+    console.log('Audio not supported', e);
+  }
+}
+
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +120,8 @@ function App() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [cvdStartTime, setCvdStartTime] = useState<number>(Date.now());
+  const [_absorptionAlerts, setAbsorptionAlerts] = useState<AbsorptionAlert[]>([]); // For future canvas rendering
+  const [showAbsorptionBadge, setShowAbsorptionBadge] = useState<AbsorptionAlert | null>(null);
 
   const wsRef = useRef<RustWebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -191,6 +235,31 @@ function App() {
             profile.set(level.price, level);
           });
           setVolumeProfile(profile);
+          break;
+
+        case 'Absorption':
+          const absorption: AbsorptionAlert = {
+            timestamp: message.timestamp,
+            price: message.price,
+            absorptionType: message.absorptionType,
+            delta: message.delta,
+            strength: message.strength,
+            x: message.x,
+          };
+
+          console.log(
+            `🛡️ ABSORPTION: ${absorption.absorptionType} absorbed at ${absorption.price.toFixed(2)} (delta=${absorption.delta}, strength=${(absorption.strength * 100).toFixed(0)}%)`
+          );
+
+          setAbsorptionAlerts((prev) => [...prev, absorption]);
+
+          // Show badge notification
+          setShowAbsorptionBadge(absorption);
+          setTimeout(() => setShowAbsorptionBadge(null), 3000);
+
+          if (isSoundEnabled) {
+            playAbsorptionSound(absorption.absorptionType);
+          }
           break;
 
         case 'Connected':
@@ -386,6 +455,7 @@ function App() {
         setBubbles((prev) => prev.filter((b) => now - b.timestamp < maxAge));
         setCvdHistory((prev) => prev.filter((p) => now - p.timestamp < maxAge));
         setZeroCrosses((prev) => prev.filter((c) => now - c.timestamp < maxAge));
+        setAbsorptionAlerts((prev) => prev.filter((a) => now - a.timestamp < maxAge));
       }
 
       setBubbles((prev) =>
@@ -407,6 +477,13 @@ function App() {
         prev.map((cross) => ({
           ...cross,
           x: cross.x - movement,
+        }))
+      );
+
+      setAbsorptionAlerts((prev) =>
+        prev.map((alert) => ({
+          ...alert,
+          x: alert.x - movement,
         }))
       );
 
@@ -566,6 +643,22 @@ function App() {
             <div className="badge-text">CVD FLIP: {showCvdBadge.toUpperCase()}</div>
             <div className="badge-subtitle">
               {showCvdBadge === 'bullish' ? 'Buy Signal' : 'Sell Signal'}
+            </div>
+          </div>
+        )}
+
+        {/* Absorption Badge */}
+        {showAbsorptionBadge && (
+          <div className={`absorption-badge ${showAbsorptionBadge.absorptionType}`}>
+            <div className="badge-icon">🛡️</div>
+            <div className="badge-text">
+              ABSORPTION: {showAbsorptionBadge.absorptionType.toUpperCase()}
+            </div>
+            <div className="badge-subtitle">
+              {showAbsorptionBadge.absorptionType === 'buying'
+                ? 'Sellers absorbing buyers'
+                : 'Buyers absorbing sellers'}{' '}
+              ({(showAbsorptionBadge.strength * 100).toFixed(0)}%)
             </div>
           </div>
         )}

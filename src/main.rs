@@ -94,11 +94,25 @@ pub struct VolumeProfileLevel {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AbsorptionEvent {
+    pub timestamp: u64,
+    pub price: f64,
+    #[serde(rename = "absorptionType")]
+    pub absorption_type: String, // "buying" or "selling" - which side is being absorbed
+    pub delta: i64,              // Net delta that was absorbed
+    #[serde(rename = "priceChange")]
+    pub price_change: f64,       // How much price moved (or didn't)
+    pub strength: f64,           // 0.0-1.0 strength indicator
+    pub x: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
     Bubble(Bubble),
     CVDPoint(CVDPoint),
     VolumeProfile { levels: Vec<VolumeProfileLevel> },
+    Absorption(AbsorptionEvent),
     Connected { symbols: Vec<String> },
     Error { message: String },
 }
@@ -124,6 +138,9 @@ struct ProcessingState {
     volume_profile: HashMap<i64, VolumeProfileLevel>, // Key = price * 4 (for 0.25 tick size)
     total_buy_volume: u64,
     total_sell_volume: u64,
+    // Absorption detection
+    window_first_price: Option<f64>,
+    window_last_price: Option<f64>,
 }
 
 impl ProcessingState {
@@ -135,6 +152,8 @@ impl ProcessingState {
             volume_profile: HashMap::new(),
             total_buy_volume: 0,
             total_sell_volume: 0,
+            window_first_price: None,
+            window_last_price: None,
         }
     }
 
@@ -153,6 +172,12 @@ impl ProcessingState {
         } else {
             self.total_sell_volume += trade.size as u64;
         }
+
+        // Track first and last price for absorption detection
+        if self.window_first_price.is_none() {
+            self.window_first_price = Some(trade.price);
+        }
+        self.window_last_price = Some(trade.price);
 
         // Update volume profile (0.25 tick size)
         let price_key = (trade.price * 4.0).round() as i64;
@@ -262,6 +287,64 @@ impl ProcessingState {
             x: 0.92,
         };
         let _ = tx.send(WsMessage::CVDPoint(cvd_point));
+
+        // Absorption detection
+        // Absorption occurs when there's significant volume delta but price doesn't move
+        // in the expected direction (or moves against it)
+        if let (Some(first_price), Some(last_price)) = (self.window_first_price, self.window_last_price) {
+            let price_change = last_price - first_price;
+            let abs_delta = delta.abs();
+
+            // Thresholds for absorption detection
+            const MIN_DELTA_FOR_ABSORPTION: i64 = 30;  // Minimum contracts for significant delta
+            const PRICE_MOVE_THRESHOLD: f64 = 0.25;    // One tick for NQ (0.25)
+
+            if abs_delta >= MIN_DELTA_FOR_ABSORPTION {
+                // Check for absorption:
+                // - Buying absorbed: delta > 0 (net buying) but price didn't go up
+                // - Selling absorbed: delta < 0 (net selling) but price didn't go down
+                let is_buying_absorbed = delta > 0 && price_change <= PRICE_MOVE_THRESHOLD;
+                let is_selling_absorbed = delta < 0 && price_change >= -PRICE_MOVE_THRESHOLD;
+
+                if is_buying_absorbed || is_selling_absorbed {
+                    // Calculate absorption strength (0.0 to 1.0)
+                    // Higher delta with less price movement = stronger absorption
+                    let expected_move = (abs_delta as f64) * 0.01; // Rough expectation: 1 tick per 100 contracts
+                    let actual_move = price_change.abs();
+                    let strength = if expected_move > 0.0 {
+                        ((expected_move - actual_move) / expected_move).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    };
+
+                    // Only emit if strength is significant
+                    if strength >= 0.3 {
+                        let absorption_type = if is_buying_absorbed { "buying" } else { "selling" };
+
+                        let absorption_event = AbsorptionEvent {
+                            timestamp: now,
+                            price: avg_price,
+                            absorption_type: absorption_type.to_string(),
+                            delta,
+                            price_change,
+                            strength,
+                            x: 0.92,
+                        };
+
+                        let _ = tx.send(WsMessage::Absorption(absorption_event));
+
+                        info!(
+                            "🛡️ ABSORPTION: {} absorbed at {:.2} (delta={}, price_change={:.2}, strength={:.0}%)",
+                            absorption_type, avg_price, delta, price_change, strength * 100.0
+                        );
+                    }
+                }
+            }
+        }
+
+        // Reset window price tracking
+        self.window_first_price = None;
+        self.window_last_price = None;
 
         // Clear buffer
         self.trade_buffer.clear();

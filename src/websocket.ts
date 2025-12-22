@@ -24,10 +24,21 @@ export interface VolumeProfileLevel {
   totalVolume: number;
 }
 
+export interface AbsorptionEvent {
+  timestamp: number;
+  price: number;
+  absorptionType: 'buying' | 'selling'; // Which side is being absorbed
+  delta: number;
+  priceChange: number;
+  strength: number; // 0.0-1.0
+  x: number;
+}
+
 export type WsMessage =
   | { type: 'Bubble' } & Bubble
   | { type: 'CVDPoint'; timestamp: number; value: number; x: number }
   | { type: 'VolumeProfile'; levels: VolumeProfileLevel[] }
+  | { type: 'Absorption' } & AbsorptionEvent
   | { type: 'Connected'; symbols: string[] }
   | { type: 'Error'; message: string };
 
