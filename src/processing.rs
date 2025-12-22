@@ -3,7 +3,8 @@ use tokio::sync::broadcast;
 use tracing::info;
 
 use crate::types::{
-    AbsorptionEvent, AbsorptionZone, Bubble, CVDPoint, Trade, VolumeProfileLevel, WsMessage,
+    AbsorptionEvent, AbsorptionZone, Bubble, CVDPoint, DeltaFlip, StackedImbalance, Trade,
+    VolumeProfileLevel, WsMessage,
 };
 
 /// Volume snapshot for rolling average calculation
@@ -51,6 +52,14 @@ pub struct ProcessingState {
     // CVD trend tracking (for context)
     cvd_5s_ago: i64, // CVD from 5 seconds ago for trend detection
     cvd_history: Vec<(u64, i64)>, // (timestamp, cvd) for trend calculation
+
+    // Delta flip detection
+    prev_cvd_sign: i8, // -1 = negative, 0 = zero, 1 = positive
+    last_delta_flip_time: u64, // Prevent rapid-fire flip events (cooldown)
+
+    // Stacked imbalances tracking
+    last_stacked_imbalance_time: u64, // Cooldown to prevent spam
+    last_stacked_imbalance_side: Option<String>, // Track last emitted to avoid duplicates
 }
 
 impl ProcessingState {
@@ -68,6 +77,10 @@ impl ProcessingState {
             absorption_zones: HashMap::new(),
             cvd_5s_ago: 0,
             cvd_history: Vec::new(),
+            prev_cvd_sign: 0,
+            last_delta_flip_time: 0,
+            last_stacked_imbalance_time: 0,
+            last_stacked_imbalance_side: None,
         }
     }
 
@@ -392,6 +405,56 @@ impl ProcessingState {
         };
         let _ = tx.send(WsMessage::CVDPoint(cvd_point));
 
+        // === DELTA FLIP DETECTION ===
+        let current_cvd_sign = if self.cvd > 0 {
+            1i8
+        } else if self.cvd < 0 {
+            -1i8
+        } else {
+            0i8
+        };
+
+        // Detect zero-cross (sign change through zero)
+        // Cooldown of 2 seconds to prevent rapid-fire events
+        let cooldown_ms = 2000;
+        if self.prev_cvd_sign != 0
+            && current_cvd_sign != 0
+            && self.prev_cvd_sign != current_cvd_sign
+            && now.saturating_sub(self.last_delta_flip_time) > cooldown_ms
+        {
+            let direction = if current_cvd_sign > 0 {
+                "bullish"
+            } else {
+                "bearish"
+            };
+
+            let delta_flip = DeltaFlip {
+                timestamp: now,
+                flip_type: "zero_cross".to_string(),
+                direction: direction.to_string(),
+                cvd_before: self.cvd_5s_ago,
+                cvd_after: self.cvd,
+                x: 0.92,
+            };
+
+            let _ = tx.send(WsMessage::DeltaFlip(delta_flip));
+            self.last_delta_flip_time = now;
+
+            info!(
+                "⚡ DELTA FLIP [{}]: CVD crossed zero → {} (was {}, now {})",
+                direction.to_uppercase(),
+                direction,
+                self.cvd_5s_ago,
+                self.cvd
+            );
+        }
+
+        self.prev_cvd_sign = current_cvd_sign;
+
+        // === STACKED IMBALANCES DETECTION ===
+        // Look for 3+ consecutive price levels with same-direction imbalance
+        self.detect_stacked_imbalances(tx, now);
+
         // === ENHANCED ABSORPTION DETECTION ===
         if let (Some(first_price), Some(last_price)) =
             (self.window_first_price, self.window_last_price)
@@ -569,6 +632,139 @@ impl ProcessingState {
                 "grey"
             }
         );
+    }
+
+    /// Detect stacked imbalances from session volume profile
+    /// Uses 1-point buckets, looks for 3+ consecutive levels with 70%+ dominance
+    fn detect_stacked_imbalances(&mut self, tx: &broadcast::Sender<WsMessage>, now: u64) {
+        // 30 second cooldown between emissions
+        const COOLDOWN_MS: u64 = 30_000;
+        if now.saturating_sub(self.last_stacked_imbalance_time) < COOLDOWN_MS {
+            return;
+        }
+
+        if self.volume_profile.is_empty() {
+            return;
+        }
+
+        // Aggregate into 1-point buckets (4 ticks = 1 point for NQ)
+        let mut point_buckets: HashMap<i64, (u32, u32)> = HashMap::new();
+        for level in self.volume_profile.values() {
+            let point_key = level.price.floor() as i64; // 1-point buckets
+            point_buckets
+                .entry(point_key)
+                .and_modify(|(buy, sell)| {
+                    *buy += level.buy_volume;
+                    *sell += level.sell_volume;
+                })
+                .or_insert((level.buy_volume, level.sell_volume));
+        }
+
+        // Sort by price
+        let mut levels: Vec<_> = point_buckets.into_iter().collect();
+        levels.sort_by_key(|(key, _)| *key);
+
+        // Minimum 70% dominance to count as imbalanced
+        const MIN_IMBALANCE_RATIO: f64 = 0.70;
+        // Minimum volume at a level to consider it (filter noise)
+        const MIN_LEVEL_VOLUME: u32 = 100;
+
+        let mut best_streak_side: Option<&str> = None;
+        let mut best_streak: Vec<(i64, i64)> = Vec::new();
+        let mut current_streak_side: Option<&str> = None;
+        let mut current_streak: Vec<(i64, i64)> = Vec::new();
+
+        for (price_key, (buy_vol, sell_vol)) in &levels {
+            let total = buy_vol + sell_vol;
+            if total < MIN_LEVEL_VOLUME {
+                // Check if current streak is better than best
+                if current_streak.len() > best_streak.len() && current_streak.len() >= 3 {
+                    best_streak = current_streak.clone();
+                    best_streak_side = current_streak_side;
+                }
+                current_streak_side = None;
+                current_streak.clear();
+                continue;
+            }
+
+            let buy_ratio = *buy_vol as f64 / total as f64;
+            let level_side = if buy_ratio >= MIN_IMBALANCE_RATIO {
+                Some("buy")
+            } else if buy_ratio <= (1.0 - MIN_IMBALANCE_RATIO) {
+                Some("sell")
+            } else {
+                None
+            };
+
+            let level_delta = *buy_vol as i64 - *sell_vol as i64;
+
+            match (level_side, current_streak_side) {
+                (Some(side), Some(streak_side)) if side == streak_side => {
+                    current_streak.push((*price_key, level_delta));
+                }
+                (Some(side), _) => {
+                    // Different side or starting fresh - save best if applicable
+                    if current_streak.len() > best_streak.len() && current_streak.len() >= 3 {
+                        best_streak = current_streak.clone();
+                        best_streak_side = current_streak_side;
+                    }
+                    current_streak_side = Some(side);
+                    current_streak.clear();
+                    current_streak.push((*price_key, level_delta));
+                }
+                (None, _) => {
+                    if current_streak.len() > best_streak.len() && current_streak.len() >= 3 {
+                        best_streak = current_streak.clone();
+                        best_streak_side = current_streak_side;
+                    }
+                    current_streak_side = None;
+                    current_streak.clear();
+                }
+            }
+        }
+
+        // Check final streak
+        if current_streak.len() > best_streak.len() && current_streak.len() >= 3 {
+            best_streak = current_streak;
+            best_streak_side = current_streak_side;
+        }
+
+        // Only emit if we found a significant stack (4+ levels) and it's different from last
+        if best_streak.len() >= 4 {
+            if let Some(side) = best_streak_side {
+                // Check if this is different from what we last emitted
+                let dominated_by = side.to_string();
+                if self.last_stacked_imbalance_side.as_ref() != Some(&dominated_by) {
+                    let price_low = best_streak.first().unwrap().0 as f64;
+                    let price_high = best_streak.last().unwrap().0 as f64 + 1.0; // +1 for bucket end
+                    let total_imbalance: i64 = best_streak.iter().map(|(_, delta)| delta.abs()).sum();
+
+                    let stacked = StackedImbalance {
+                        timestamp: now,
+                        side: side.to_string(),
+                        level_count: best_streak.len() as u32,
+                        price_high,
+                        price_low,
+                        total_imbalance,
+                        x: 0.92,
+                    };
+
+                    let _ = tx.send(WsMessage::StackedImbalance(stacked));
+
+                    self.last_stacked_imbalance_time = now;
+                    self.last_stacked_imbalance_side = Some(side.to_string());
+
+                    info!(
+                        "📊 STACKED IMBALANCE [{}]: {} consecutive 1-point levels from {:.0} to {:.0} | total imbalance={}",
+                        side.to_uppercase(),
+                        best_streak.len(),
+                        price_low,
+                        price_high,
+                        total_imbalance
+                    );
+                }
+            }
+        }
     }
 
     /// Send the current volume profile to clients

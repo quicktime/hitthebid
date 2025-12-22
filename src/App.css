@@ -1743,3 +1743,118 @@ body {
 .app.overlay-mode .visualization {
   pointer-events: none;
 }
+
+/* Stacked Imbalance Badge Notification */
+.stacked-badge {
+  position: absolute;
+  top: 40%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 24px;
+  background: var(--bg-elevated);
+  border: 3px solid;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: stackedEntrance 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  min-width: 220px;
+}
+
+.stacked-badge.buy {
+  border-color: var(--accent-green);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(0, 230, 118, 0.3);
+}
+
+.stacked-badge.sell {
+  border-color: var(--accent-red);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    0 0 40px rgba(255, 82, 82, 0.3);
+}
+
+@keyframes stackedEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%) translateX(50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+.stacked-badge .badge-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.stacked-badge .badge-text {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.stacked-badge.buy .badge-text {
+  color: var(--accent-green);
+}
+
+.stacked-badge.sell .badge-text {
+  color: var(--accent-red);
+}
+
+.stacked-badge .badge-type {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.stacked-badge .badge-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.stacked-badge .badge-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stacked-badge .badge-stats .stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stacked-badge .badge-stats .stat-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stacked-badge .badge-subtitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 4px;
+}

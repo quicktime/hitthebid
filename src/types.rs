@@ -88,6 +88,36 @@ pub struct AbsorptionEvent {
     pub x: f64,
 }
 
+/// Delta Flip Event - CVD crossing zero or reversing direction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeltaFlip {
+    pub timestamp: u64,
+    #[serde(rename = "flipType")]
+    pub flip_type: String, // "zero_cross" or "reversal"
+    pub direction: String, // "bullish" (crossing up/reversing up) or "bearish"
+    #[serde(rename = "cvdBefore")]
+    pub cvd_before: i64,
+    #[serde(rename = "cvdAfter")]
+    pub cvd_after: i64,
+    pub x: f64,
+}
+
+/// Stacked Imbalances - 3+ consecutive price levels with same-direction imbalance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StackedImbalance {
+    pub timestamp: u64,
+    pub side: String, // "buy" or "sell"
+    #[serde(rename = "levelCount")]
+    pub level_count: u32, // How many consecutive levels (3+)
+    #[serde(rename = "priceHigh")]
+    pub price_high: f64,
+    #[serde(rename = "priceLow")]
+    pub price_low: f64,
+    #[serde(rename = "totalImbalance")]
+    pub total_imbalance: i64, // Sum of imbalances across levels
+    pub x: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
@@ -96,6 +126,8 @@ pub enum WsMessage {
     VolumeProfile { levels: Vec<VolumeProfileLevel> },
     Absorption(AbsorptionEvent),
     AbsorptionZones { zones: Vec<AbsorptionZone> },
+    DeltaFlip(DeltaFlip),
+    StackedImbalance(StackedImbalance),
     Connected { symbols: Vec<String> },
     Error { message: String },
 }

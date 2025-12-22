@@ -43,6 +43,16 @@ interface AbsorptionZone {
   againstTrend: boolean;
 }
 
+interface StackedImbalance {
+  timestamp: number;
+  side: 'buy' | 'sell';
+  levelCount: number;
+  priceHigh: number;
+  priceLow: number;
+  totalImbalance: number;
+  x: number;
+}
+
 interface BubbleRendererProps {
   bubbles: Bubble[];
   priceRange: { min: number; max: number } | null;
@@ -54,6 +64,7 @@ interface BubbleRendererProps {
   onClick?: (e: React.MouseEvent<HTMLCanvasElement>) => void;
   volumeProfile: Map<number, VolumeProfileLevel>;
   absorptionZones?: AbsorptionZone[];
+  stackedImbalances?: StackedImbalance[];
 }
 
 // Colors matching trading aesthetic
@@ -98,7 +109,8 @@ export function BubbleRenderer({
   zeroCrosses,
   onClick,
   volumeProfile,
-  absorptionZones = []
+  absorptionZones = [],
+  stackedImbalances = []
 }: BubbleRendererProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -290,7 +302,10 @@ export function BubbleRenderer({
     // Draw absorption zones on the chart (after volume profile)
     drawAbsorptionZones(ctx, absorptionZones, rect.width, mainChartHeight, priceMin, priceMax);
 
-  }, [bubbles, priceRange, canvasRef, cvdHistory, cvdRange, currentCVD, zeroCrosses, volumeProfile, absorptionZones]);
+    // Draw stacked imbalances (vertical highlight zones)
+    drawStackedImbalances(ctx, stackedImbalances, rect.width, mainChartHeight, priceMin, priceMax);
+
+  }, [bubbles, priceRange, canvasRef, cvdHistory, cvdRange, currentCVD, zeroCrosses, volumeProfile, absorptionZones, stackedImbalances]);
 
   return (
     <canvas
@@ -739,5 +754,58 @@ export function drawVolumeProfile(
     // Sell volume (red, right side)
     ctx.fillStyle = COLORS.sell.fill;
     ctx.fillRect(width - 50, y, sellWidth, barHeight - 1);
+  });
+}
+
+// Draw stacked imbalances as vertical highlight zones
+function drawStackedImbalances(
+  ctx: CanvasRenderingContext2D,
+  imbalances: StackedImbalance[],
+  width: number,
+  height: number,
+  priceMin: number,
+  priceMax: number
+) {
+  if (imbalances.length === 0) return;
+
+  const priceSpan = priceMax - priceMin;
+  const profileWidth = 120;
+
+  imbalances.forEach((imbalance) => {
+    const x = imbalance.x * width;
+    const yHigh = height - ((imbalance.priceHigh - priceMin) / priceSpan) * height;
+    const yLow = height - ((imbalance.priceLow - priceMin) / priceSpan) * height;
+    // Ensure minimum visible height of 30px
+    const rawHeight = Math.abs(yLow - yHigh);
+    const rectHeight = Math.max(30, rawHeight);
+    const centerY = (yHigh + yLow) / 2;
+    const rectY = centerY - rectHeight / 2;
+
+    // Skip if outside visible area
+    if (x < profileWidth || x > width) return;
+
+    // More visible colors
+    const color = imbalance.side === 'buy'
+      ? 'rgba(0, 230, 118, 0.25)' // Green for buy (brighter)
+      : 'rgba(255, 82, 82, 0.25)'; // Red for sell (brighter)
+
+    const borderColor = imbalance.side === 'buy'
+      ? 'rgba(0, 230, 118, 0.8)'
+      : 'rgba(255, 82, 82, 0.8)';
+
+    // Draw filled rectangle
+    ctx.fillStyle = color;
+    ctx.fillRect(x - 20, rectY, 40, rectHeight);
+
+    // Draw border
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 20, rectY, 40, rectHeight);
+
+    // Draw label at top
+    ctx.fillStyle = borderColor;
+    ctx.font = 'bold 10px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${imbalance.levelCount}L`, x, rectY - 5);
   });
 }

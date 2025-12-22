@@ -59,6 +59,16 @@ interface VolumeProfileLevel {
   totalVolume: number;
 }
 
+interface StackedImbalance {
+  timestamp: number;
+  side: 'buy' | 'sell';
+  levelCount: number;
+  priceHigh: number;
+  priceLow: number;
+  totalImbalance: number;
+  x: number;
+}
+
 const BUBBLE_LIFETIME_SECONDS = 120;
 
 // Audio alert function for zero crosses
@@ -79,6 +89,31 @@ function playAlertSound(direction: 'bullish' | 'bearish') {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (e) {
+    console.log('Audio not supported', e);
+  }
+}
+
+// Audio alert for stacked imbalances - triple ascending/descending beep
+function playStackedImbalanceSound(side: 'buy' | 'sell') {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const baseFreq = side === 'buy' ? 500 : 400;
+    const freqStep = side === 'buy' ? 100 : -50;
+
+    for (let i = 0; i < 3; i++) {
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.value = baseFreq + (freqStep * i);
+      osc.type = 'square';
+      const startTime = audioContext.currentTime + (i * 0.1);
+      gain.gain.setValueAtTime(0.15, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.08);
+      osc.start(startTime);
+      osc.stop(startTime + 0.08);
+    }
   } catch (e) {
     console.log('Audio not supported', e);
   }
@@ -139,6 +174,8 @@ function App() {
   const [_absorptionAlerts, setAbsorptionAlerts] = useState<AbsorptionAlert[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [absorptionZones, setAbsorptionZones] = useState<AbsorptionZone[]>([]); // Passed to BubbleRenderer for canvas rendering
   const [showAbsorptionBadge, setShowAbsorptionBadge] = useState<AbsorptionAlert | null>(null);
+  const [stackedImbalances, setStackedImbalances] = useState<StackedImbalance[]>([]);
+  const [showStackedBadge, setShowStackedBadge] = useState<StackedImbalance | null>(null);
 
   const wsRef = useRef<RustWebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -297,6 +334,60 @@ function App() {
             atVal: z.atVal,
             againstTrend: z.againstTrend,
           })));
+          break;
+
+        case 'DeltaFlip':
+          console.log(`⚡ DELTA FLIP from backend: ${message.direction.toUpperCase()} (${message.flipType})`);
+
+          // Add to zeroCrosses for visual display
+          setZeroCrosses((prev) => [
+            ...prev,
+            {
+              timestamp: message.timestamp,
+              direction: message.direction,
+              x: message.x,
+              price: lastPrice || undefined,
+            },
+          ]);
+
+          // Trigger visual alerts
+          setCvdFlashAlert(message.direction);
+          setTimeout(() => setCvdFlashAlert(null), 500);
+
+          setShowCvdBadge(message.direction);
+          setTimeout(() => setShowCvdBadge(null), 3000);
+
+          if (isSoundEnabled) {
+            playAlertSound(message.direction);
+          }
+          break;
+
+        case 'StackedImbalance':
+          console.log(
+            `📊 STACKED IMBALANCE [${message.side.toUpperCase()}]: ${message.levelCount} levels from ${message.priceLow.toFixed(2)} to ${message.priceHigh.toFixed(2)}`
+          );
+
+          const stacked: StackedImbalance = {
+            timestamp: message.timestamp,
+            side: message.side,
+            levelCount: message.levelCount,
+            priceHigh: message.priceHigh,
+            priceLow: message.priceLow,
+            totalImbalance: message.totalImbalance,
+            x: message.x,
+          };
+
+          setStackedImbalances((prev) => [...prev, stacked]);
+
+          // Show badge for 4+ levels (strong signal)
+          if (message.levelCount >= 4) {
+            setShowStackedBadge(stacked);
+            setTimeout(() => setShowStackedBadge(null), 3000);
+
+            if (isSoundEnabled) {
+              playStackedImbalanceSound(message.side);
+            }
+          }
           break;
 
         case 'Connected':
@@ -493,6 +584,7 @@ function App() {
         setCvdHistory((prev) => prev.filter((p) => now - p.timestamp < maxAge));
         setZeroCrosses((prev) => prev.filter((c) => now - c.timestamp < maxAge));
         setAbsorptionAlerts((prev) => prev.filter((a) => now - a.timestamp < maxAge));
+        setStackedImbalances((prev) => prev.filter((s) => now - s.timestamp < maxAge));
       }
 
       setBubbles((prev) =>
@@ -521,6 +613,13 @@ function App() {
         prev.map((alert) => ({
           ...alert,
           x: alert.x - movement,
+        }))
+      );
+
+      setStackedImbalances((prev) =>
+        prev.map((stacked) => ({
+          ...stacked,
+          x: stacked.x - movement,
         }))
       );
 
@@ -731,6 +830,32 @@ function App() {
           </div>
         )}
 
+        {/* Stacked Imbalance Badge */}
+        {showStackedBadge && (
+          <div className={`stacked-badge ${showStackedBadge.side}`}>
+            <div className="badge-icon">
+              {showStackedBadge.side === 'buy' ? '📈' : '📉'}
+            </div>
+            <div className="badge-text">STACKED IMBALANCE</div>
+            <div className="badge-type">
+              {showStackedBadge.levelCount} consecutive {showStackedBadge.side} levels
+            </div>
+            <div className="badge-stats">
+              <span className="stat">
+                <span className="stat-label">Levels</span>
+                <span className="stat-value">{showStackedBadge.levelCount}</span>
+              </span>
+              <span className="stat">
+                <span className="stat-label">Range</span>
+                <span className="stat-value">{showStackedBadge.priceLow.toFixed(2)} - {showStackedBadge.priceHigh.toFixed(2)}</span>
+              </span>
+            </div>
+            <div className="badge-subtitle">
+              Strong {showStackedBadge.side === 'buy' ? 'buying' : 'selling'} pressure - expect continuation
+            </div>
+          </div>
+        )}
+
         <BubbleRenderer
           bubbles={bubbles}
           priceRange={priceRange}
@@ -742,6 +867,7 @@ function App() {
           onClick={handleCanvasClick}
           volumeProfile={volumeProfile}
           absorptionZones={absorptionZones}
+          stackedImbalances={stackedImbalances}
         />
 
         {/* Bubble Info Tooltip */}

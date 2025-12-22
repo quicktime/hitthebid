@@ -52,12 +52,33 @@ export interface AbsorptionEvent {
   x: number;
 }
 
+export interface DeltaFlip {
+  timestamp: number;
+  flipType: 'zero_cross' | 'reversal';
+  direction: 'bullish' | 'bearish';
+  cvdBefore: number;
+  cvdAfter: number;
+  x: number;
+}
+
+export interface StackedImbalance {
+  timestamp: number;
+  side: 'buy' | 'sell';
+  levelCount: number;
+  priceHigh: number;
+  priceLow: number;
+  totalImbalance: number;
+  x: number;
+}
+
 export type WsMessage =
   | { type: 'Bubble' } & Bubble
   | { type: 'CVDPoint'; timestamp: number; value: number; x: number }
   | { type: 'VolumeProfile'; levels: VolumeProfileLevel[] }
   | { type: 'Absorption' } & AbsorptionEvent
   | { type: 'AbsorptionZones'; zones: AbsorptionZone[] }
+  | { type: 'DeltaFlip' } & DeltaFlip
+  | { type: 'StackedImbalance' } & StackedImbalance
   | { type: 'Connected'; symbols: string[] }
   | { type: 'Error'; message: string };
 
