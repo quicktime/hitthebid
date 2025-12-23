@@ -160,6 +160,12 @@ async fn main() -> Result<()> {
         config.min_size // From Supabase config
     };
 
+    let replay_date_clone = if args.replay {
+        args.replay_date.clone()
+    } else {
+        None
+    };
+
     let state = Arc::new(AppState {
         tx: tx.clone(),
         active_symbols: RwLock::new(symbols.iter().cloned().collect()),
@@ -168,6 +174,13 @@ async fn main() -> Result<()> {
         supabase,
         config: RwLock::new(config),
         session_stats: RwLock::new((0.0, f64::MAX, 0)),
+        mode: mode.to_lowercase(),
+        replay_date: replay_date_clone,
+        replay_control: RwLock::new(types::ReplayControl {
+            is_paused: false,
+            speed: args.replay_speed,
+            current_timestamp: None,
+        }),
     });
 
     // Spawn data streaming task (demo, replay, or live)
@@ -265,9 +278,28 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
 
     // Send current state to new client
     let symbols: Vec<String> = state.active_symbols.read().await.iter().cloned().collect();
-    let welcome = WsMessage::Connected { symbols };
+    let welcome = WsMessage::Connected {
+        symbols,
+        mode: state.mode.clone(),
+    };
     if let Ok(json) = serde_json::to_string(&welcome) {
         let _ = sender.send(Message::Text(json)).await;
+    }
+
+    // Send initial replay status
+    {
+        let replay_ctrl = state.replay_control.read().await;
+        let status = types::ReplayStatus {
+            mode: state.mode.clone(),
+            is_paused: replay_ctrl.is_paused,
+            speed: replay_ctrl.speed,
+            replay_date: state.replay_date.clone(),
+            replay_progress: None,
+            current_time: replay_ctrl.current_timestamp,
+        };
+        if let Ok(json) = serde_json::to_string(&WsMessage::ReplayStatus(status)) {
+            let _ = sender.send(Message::Text(json)).await;
+        }
     }
 
     // Spawn task to forward messages to this client
@@ -308,6 +340,54 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                                         }
                                     });
                                 }
+                            }
+                        }
+                        "replay_pause" => {
+                            let mut ctrl = state_clone.replay_control.write().await;
+                            ctrl.is_paused = true;
+                            info!("⏸️ Replay paused");
+                            // Broadcast status update
+                            let status = types::ReplayStatus {
+                                mode: state_clone.mode.clone(),
+                                is_paused: true,
+                                speed: ctrl.speed,
+                                replay_date: state_clone.replay_date.clone(),
+                                replay_progress: None,
+                                current_time: ctrl.current_timestamp,
+                            };
+                            let _ = state_clone.tx.send(WsMessage::ReplayStatus(status));
+                        }
+                        "replay_resume" => {
+                            let mut ctrl = state_clone.replay_control.write().await;
+                            ctrl.is_paused = false;
+                            info!("▶️ Replay resumed");
+                            // Broadcast status update
+                            let status = types::ReplayStatus {
+                                mode: state_clone.mode.clone(),
+                                is_paused: false,
+                                speed: ctrl.speed,
+                                replay_date: state_clone.replay_date.clone(),
+                                replay_progress: None,
+                                current_time: ctrl.current_timestamp,
+                            };
+                            let _ = state_clone.tx.send(WsMessage::ReplayStatus(status));
+                        }
+                        "set_replay_speed" => {
+                            if let Some(speed) = client_msg.speed {
+                                let speed = speed.clamp(1, 100);
+                                let mut ctrl = state_clone.replay_control.write().await;
+                                ctrl.speed = speed;
+                                info!("⏩ Replay speed set to {}x", speed);
+                                // Broadcast status update
+                                let status = types::ReplayStatus {
+                                    mode: state_clone.mode.clone(),
+                                    is_paused: ctrl.is_paused,
+                                    speed,
+                                    replay_date: state_clone.replay_date.clone(),
+                                    replay_progress: None,
+                                    current_time: ctrl.current_timestamp,
+                                };
+                                let _ = state_clone.tx.send(WsMessage::ReplayStatus(status));
                             }
                         }
                         _ => {}

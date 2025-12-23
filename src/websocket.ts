@@ -2,6 +2,7 @@
 
 export interface Bubble {
   id: string;
+  symbol: string;
   price: number;
   size: number;
   side: 'buy' | 'sell';
@@ -105,6 +106,15 @@ export interface SessionStats {
   totalVolume: number;
 }
 
+export interface ReplayStatus {
+  mode: string;
+  isPaused: boolean;
+  speed: number;
+  replayDate: string | null;
+  replayProgress: number | null;
+  currentTime: number | null;
+}
+
 export type WsMessage =
   | { type: 'Bubble' } & Bubble
   | { type: 'CVDPoint'; timestamp: number; value: number; x: number }
@@ -115,18 +125,21 @@ export type WsMessage =
   | { type: 'StackedImbalance' } & StackedImbalance
   | { type: 'Confluence' } & ConfluenceEvent
   | { type: 'SessionStats' } & SessionStats
-  | { type: 'Connected'; symbols: string[] }
+  | { type: 'ReplayStatus' } & ReplayStatus
+  | { type: 'Connected'; symbols: string[]; mode: string }
   | { type: 'Error'; message: string };
 
 export class RustWebSocket {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private baseDelay = 1000;
+  private maxDelay = 30000;
+  private shouldReconnect = true;
   private onMessageCallback: ((message: WsMessage) => void) | null = null;
   private onConnectCallback: (() => void) | null = null;
   private onDisconnectCallback: (() => void) | null = null;
+  private onReconnectingCallback: ((attempt: number, delay: number) => void) | null = null;
 
   constructor(url: string = 'ws://localhost:8080/ws') {
     this.url = url;
@@ -167,7 +180,9 @@ export class RustWebSocket {
           if (this.onDisconnectCallback) {
             this.onDisconnectCallback();
           }
-          this.attemptReconnect();
+          if (this.shouldReconnect) {
+            this.attemptReconnect();
+          }
         };
       } catch (e) {
         reject(e);
@@ -176,18 +191,27 @@ export class RustWebSocket {
   }
 
   private attemptReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      console.log(
-        `Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
-      );
-      setTimeout(() => {
-        this.connect().catch((e) => console.error('Reconnect failed:', e));
-      }, this.reconnectDelay * this.reconnectAttempts);
+    this.reconnectAttempts++;
+    // Exponential backoff with jitter: delay = min(maxDelay, baseDelay * 2^attempts + random jitter)
+    const exponentialDelay = this.baseDelay * Math.pow(2, Math.min(this.reconnectAttempts - 1, 5));
+    const jitter = Math.random() * 1000;
+    const delay = Math.min(this.maxDelay, exponentialDelay + jitter);
+
+    console.log(`Reconnecting in ${(delay / 1000).toFixed(1)}s... (attempt ${this.reconnectAttempts})`);
+
+    if (this.onReconnectingCallback) {
+      this.onReconnectingCallback(this.reconnectAttempts, delay);
     }
+
+    setTimeout(() => {
+      if (this.shouldReconnect) {
+        this.connect().catch((e) => console.error('Reconnect failed:', e));
+      }
+    }, delay);
   }
 
   disconnect() {
+    this.shouldReconnect = false;
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -206,6 +230,14 @@ export class RustWebSocket {
     this.onDisconnectCallback = callback;
   }
 
+  onReconnecting(callback: (attempt: number, delay: number) => void) {
+    this.onReconnectingCallback = callback;
+  }
+
+  getReconnectAttempts(): number {
+    return this.reconnectAttempts;
+  }
+
   send(message: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
@@ -214,5 +246,22 @@ export class RustWebSocket {
 
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  // Replay control methods
+  replayPause() {
+    this.send({ action: 'replay_pause' });
+  }
+
+  replayResume() {
+    this.send({ action: 'replay_resume' });
+  }
+
+  setReplaySpeed(speed: number) {
+    this.send({ action: 'set_replay_speed', speed });
+  }
+
+  setMinSize(minSize: number) {
+    this.send({ action: 'set_min_size', min_size: minSize });
   }
 }

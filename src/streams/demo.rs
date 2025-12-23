@@ -16,6 +16,7 @@ pub async fn run_demo_stream(
     // Notify clients we're connected
     let _ = state.tx.send(WsMessage::Connected {
         symbols: symbols.clone(),
+        mode: state.mode.clone(),
     });
 
     // Create processing state with Supabase persistence and AppState for stats sync

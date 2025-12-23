@@ -1,11 +1,16 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { RustWebSocket, WsMessage } from './websocket';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { RustWebSocket, WsMessage, ReplayStatus } from './websocket';
 import { BubbleRenderer } from './BubbleRenderer';
 import { StatsPage } from './StatsPage';
+import { ReplayControls } from './ReplayControls';
+import { SettingsPanel } from './SettingsPanel';
+import { DirectionChart } from './DirectionChart';
+import { PnLSimulator, SimulatedTrade } from './PnLSimulator';
 import './App.css';
 
 interface Bubble {
   id: string;
+  symbol: string;
   price: number;
   size: number;
   side: 'buy' | 'sell';
@@ -238,10 +243,26 @@ function App() {
   const [showConfluenceBadge, setShowConfluenceBadge] = useState<ConfluenceEvent | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
   const [currentView, setCurrentView] = useState<'chart' | 'stats' | 'history'>('chart');
+  const [serverMode, setServerMode] = useState<string>('live');
+  const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
+  const [connectedSymbols, setConnectedSymbols] = useState<string[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string>('all');
+  const [showSettings, setShowSettings] = useState(false);
+  const [minSize, setMinSize] = useState(1);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationsPermission, setNotificationsPermission] = useState<NotificationPermission>('default');
+  const [showPnLSimulator, setShowPnLSimulator] = useState(false);
+  const [simulatedTrades, setSimulatedTrades] = useState<SimulatedTrade[]>([]);
 
   const wsRef = useRef<RustWebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cvdBaselineRef = useRef<number>(0); // Offset for CVD reset
+
+  // Filter bubbles by selected symbol
+  const filteredBubbles = useMemo(() => {
+    if (selectedSymbol === 'all') return bubbles;
+    return bubbles.filter((b) => b.symbol === selectedSymbol);
+  }, [bubbles, selectedSymbol]);
   const lastRawCvdRef = useRef<number>(0);  // Track last raw CVD from server
   const prevAdjustedCvdRef = useRef<number>(0); // Track previous adjusted CVD for zero-cross
 
@@ -266,6 +287,7 @@ function App() {
         case 'Bubble':
           const bubble: Bubble = {
             id: message.id,
+            symbol: message.symbol,
             price: message.price,
             size: message.size,
             side: message.side,
@@ -449,6 +471,15 @@ function App() {
             if (isSoundEnabled) {
               playStackedImbalanceSound(message.side);
             }
+
+            // Browser notification for strong stacked imbalances
+            if (Notification.permission === 'granted' && !document.hasFocus()) {
+              new Notification(`Stacked Imbalance ${message.side.toUpperCase()}`, {
+                body: `${message.levelCount} levels from ${message.priceLow.toFixed(2)} to ${message.priceHigh.toFixed(2)}`,
+                tag: `stacked-${message.timestamp}`,
+                icon: '/favicon.ico',
+              });
+            }
           }
           break;
 
@@ -475,6 +506,15 @@ function App() {
           if (isSoundEnabled) {
             playConfluenceSound(message.direction);
           }
+
+          // Browser notification for confluence
+          if (Notification.permission === 'granted' && !document.hasFocus()) {
+            new Notification(`Confluence ${message.direction.toUpperCase()}`, {
+              body: `${message.signals.join(' + ')} at ${message.price.toFixed(2)}`,
+              tag: `confluence-${message.timestamp}`,
+              icon: '/favicon.ico',
+            });
+          }
           break;
 
         case 'SessionStats':
@@ -492,7 +532,20 @@ function App() {
           break;
 
         case 'Connected':
-          console.log('📡 Connected to symbols:', message.symbols);
+          console.log('📡 Connected to symbols:', message.symbols, 'mode:', message.mode);
+          setServerMode(message.mode);
+          setConnectedSymbols(message.symbols);
+          break;
+
+        case 'ReplayStatus':
+          setReplayStatus({
+            mode: message.mode,
+            isPaused: message.isPaused,
+            speed: message.speed,
+            replayDate: message.replayDate,
+            replayProgress: message.replayProgress,
+            currentTime: message.currentTime,
+          });
           break;
 
         case 'Error':
@@ -511,6 +564,94 @@ function App() {
       ws.disconnect();
     };
   }, []); // Only run once on mount
+
+  // Replay control callbacks
+  const handleReplayPause = useCallback(() => {
+    wsRef.current?.replayPause();
+  }, []);
+
+  const handleReplayResume = useCallback(() => {
+    wsRef.current?.replayResume();
+  }, []);
+
+  const handleReplaySpeedChange = useCallback((speed: number) => {
+    wsRef.current?.setReplaySpeed(speed);
+  }, []);
+
+  const handleMinSizeChange = useCallback((size: number) => {
+    wsRef.current?.setMinSize(size);
+    setMinSize(size);
+  }, []);
+
+  // Request notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+      console.log('Browser does not support notifications');
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationsPermission(permission);
+    if (permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  // P&L Simulator handlers
+  const handleAddTrade = useCallback((trade: Omit<SimulatedTrade, 'id' | 'status'>) => {
+    const newTrade: SimulatedTrade = {
+      ...trade,
+      id: `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      status: 'open',
+    };
+    setSimulatedTrades((prev) => [...prev, newTrade]);
+    console.log(`[PnL] Opened ${trade.direction.toUpperCase()} @ ${trade.entryPrice.toFixed(2)}`);
+  }, []);
+
+  const handleCloseTrade = useCallback((tradeId: string, exitPrice: number) => {
+    setSimulatedTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.id !== tradeId || trade.status === 'closed') return trade;
+        const priceDiff = exitPrice - trade.entryPrice;
+        const pnl = trade.direction === 'long' ? priceDiff * trade.size : -priceDiff * trade.size;
+        console.log(`[PnL] Closed ${trade.direction.toUpperCase()} @ ${exitPrice.toFixed(2)} | P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`);
+        return {
+          ...trade,
+          exitTime: Date.now(),
+          exitPrice,
+          pnl,
+          status: 'closed' as const,
+        };
+      })
+    );
+  }, []);
+
+  const handleClearTrades = useCallback(() => {
+    setSimulatedTrades([]);
+    console.log('[PnL] Cleared all trades');
+  }, []);
+
+  // Quick trade from signal badge
+  const enterTradeFromSignal = useCallback(
+    (direction: 'bullish' | 'bearish', signalType: string, price?: number) => {
+      if (!lastPrice && !price) return;
+      handleAddTrade({
+        entryTime: Date.now(),
+        entryPrice: price || lastPrice!,
+        direction: direction === 'bullish' ? 'long' : 'short',
+        size: 1,
+        signalType,
+      });
+    },
+    [lastPrice, handleAddTrade]
+  );
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationsPermission(Notification.permission);
+      setNotificationsEnabled(Notification.permission === 'granted');
+    }
+  }, []);
 
   // Reset CVD function
   const resetCVD = useCallback(() => {
@@ -567,8 +708,8 @@ function App() {
       let clickedBubble: Bubble | null = null;
       let minDistance = Infinity;
 
-      for (let i = bubbles.length - 1; i >= 0; i--) {
-        const bubble = bubbles[i];
+      for (let i = filteredBubbles.length - 1; i >= 0; i--) {
+        const bubble = filteredBubbles[i];
         const bubbleX = bubble.x;
         const bubbleY = 1 - (bubble.price - priceRange.min) / priceSpan;
         const radius = Math.min(100, Math.max(3, bubble.size * 0.008)) / rect.width;
@@ -591,7 +732,7 @@ function App() {
         setClickPosition(null);
       }
     },
-    [bubbles, priceRange]
+    [filteredBubbles, priceRange]
   );
 
   // Keyboard shortcuts
@@ -747,6 +888,25 @@ function App() {
             <span className="logo-icon">◉</span>
             FLOW
           </h1>
+          {isConnected && connectedSymbols.length > 0 && (
+            <div className="symbol-selector">
+              <button
+                className={`symbol-btn ${selectedSymbol === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedSymbol('all')}
+              >
+                ALL
+              </button>
+              {connectedSymbols.map((symbol) => (
+                <button
+                  key={symbol}
+                  className={`symbol-btn ${selectedSymbol === symbol ? 'active' : ''}`}
+                  onClick={() => setSelectedSymbol(symbol)}
+                >
+                  {symbol.replace('.c.0', '')}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="header-center">
@@ -792,10 +952,18 @@ function App() {
             </>
           )}
 
-          <div className={`status ${isConnected ? 'connected' : ''}`}>
+          <div className={`status ${isConnected ? (serverMode === 'demo' ? 'demo' : serverMode === 'replay' ? 'replay' : 'connected') : ''}`}>
             <span className="status-dot"></span>
-            {isConnected ? 'LIVE' : 'OFFLINE'}
+            {isConnected ? serverMode.toUpperCase() : 'OFFLINE'}
           </div>
+          {isConnected && serverMode === 'replay' && replayStatus && (
+            <ReplayControls
+              status={replayStatus}
+              onPause={handleReplayPause}
+              onResume={handleReplayResume}
+              onSpeedChange={handleReplaySpeedChange}
+            />
+          )}
           {isPaused && (
             <div className="paused-indicator" title="Press Space to resume">
               ⏸ PAUSED
@@ -809,8 +977,28 @@ function App() {
             ⌨️
           </button>
           {isConnected && (
+            <button
+              className="settings-btn"
+              onClick={() => setShowSettings(true)}
+              title="Settings"
+            >
+              ⚙️
+            </button>
+          )}
+          {isConnected && (
             <button className="screenshot-btn" onClick={exportScreenshot} title="Export screenshot (S)">
               📸
+            </button>
+          )}
+          {isConnected && (
+            <button
+              className={`pnl-btn ${simulatedTrades.filter(t => t.status === 'open').length > 0 ? 'has-positions' : ''}`}
+              onClick={() => setShowPnLSimulator(true)}
+              title="P&L Simulator"
+            >
+              💰 {simulatedTrades.filter(t => t.status === 'open').length > 0 && (
+                <span className="position-count">{simulatedTrades.filter(t => t.status === 'open').length}</span>
+              )}
             </button>
           )}
           {isConnected && (
@@ -831,6 +1019,30 @@ function App() {
           </button>
         </div>
       </header>
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        minSize={minSize}
+        onMinSizeChange={handleMinSizeChange}
+        isSoundEnabled={isSoundEnabled}
+        onSoundToggle={() => setIsSoundEnabled(!isSoundEnabled)}
+        notificationsEnabled={notificationsEnabled}
+        notificationsPermission={notificationsPermission}
+        onRequestNotificationPermission={requestNotificationPermission}
+      />
+
+      {/* P&L Simulator */}
+      <PnLSimulator
+        isOpen={showPnLSimulator}
+        onClose={() => setShowPnLSimulator(false)}
+        currentPrice={lastPrice}
+        trades={simulatedTrades}
+        onAddTrade={handleAddTrade}
+        onCloseTrade={handleCloseTrade}
+        onClearTrades={handleClearTrades}
+      />
 
       {/* Keyboard Shortcuts Help Modal */}
       {showShortcutsHelp && (
@@ -902,6 +1114,12 @@ function App() {
           <div className={`cvd-badge ${showCvdBadge}`}>
             <div className="badge-icon">{showCvdBadge === 'bullish' ? '🟢' : '🔴'}</div>
             <div className="badge-text">CVD FLIP: {showCvdBadge.toUpperCase()}</div>
+            <button
+              className={`badge-trade-btn ${showCvdBadge}`}
+              onClick={() => enterTradeFromSignal(showCvdBadge, 'delta_flip')}
+            >
+              {showCvdBadge === 'bullish' ? 'LONG' : 'SHORT'} @ {lastPrice?.toFixed(2) || 'Market'}
+            </button>
             <div className="badge-subtitle">
               {showCvdBadge === 'bullish' ? 'Buy Signal' : 'Sell Signal'}
             </div>
@@ -975,6 +1193,15 @@ function App() {
                 <span className="stat-value">{showStackedBadge.priceLow.toFixed(2)} - {showStackedBadge.priceHigh.toFixed(2)}</span>
               </span>
             </div>
+            <button
+              className={`badge-trade-btn ${showStackedBadge.side === 'buy' ? 'bullish' : 'bearish'}`}
+              onClick={() => enterTradeFromSignal(
+                showStackedBadge.side === 'buy' ? 'bullish' : 'bearish',
+                'stacked_imbalance'
+              )}
+            >
+              {showStackedBadge.side === 'buy' ? 'LONG' : 'SHORT'} @ {lastPrice?.toFixed(2) || 'Market'}
+            </button>
             <div className="badge-subtitle">
               Strong {showStackedBadge.side === 'buy' ? 'buying' : 'selling'} pressure - expect continuation
             </div>
@@ -1004,6 +1231,12 @@ function App() {
                 <span className="stat-value">{showConfluenceBadge.price.toFixed(2)}</span>
               </span>
             </div>
+            <button
+              className={`badge-trade-btn ${showConfluenceBadge.direction}`}
+              onClick={() => enterTradeFromSignal(showConfluenceBadge.direction, 'confluence', showConfluenceBadge.price)}
+            >
+              {showConfluenceBadge.direction === 'bullish' ? 'LONG' : 'SHORT'} @ {showConfluenceBadge.price.toFixed(2)}
+            </button>
             <div className="badge-subtitle">
               {showConfluenceBadge.direction === 'bullish'
                 ? 'Multiple signals agree - consider LONG entry'
@@ -1015,7 +1248,7 @@ function App() {
         {currentView === 'chart' ? (
           <>
             <BubbleRenderer
-              bubbles={bubbles}
+              bubbles={filteredBubbles}
               priceRange={priceRange}
               canvasRef={canvasRef}
               cvdHistory={cvdHistory}
@@ -1093,6 +1326,29 @@ function App() {
                     <span className="overview-label">Total Volume</span>
                     <span className="overview-value">{sessionStats.totalVolume.toLocaleString()}</span>
                   </div>
+                </div>
+
+                <div className="direction-charts-grid">
+                  <DirectionChart
+                    title="Delta Flips"
+                    bullish={sessionStats.deltaFlips.bullishCount}
+                    bearish={sessionStats.deltaFlips.bearishCount}
+                  />
+                  <DirectionChart
+                    title="Absorptions"
+                    bullish={sessionStats.absorptions.bullishCount}
+                    bearish={sessionStats.absorptions.bearishCount}
+                  />
+                  <DirectionChart
+                    title="Stacked Imbalances"
+                    bullish={sessionStats.stackedImbalances.bullishCount}
+                    bearish={sessionStats.stackedImbalances.bearishCount}
+                  />
+                  <DirectionChart
+                    title="Confluences"
+                    bullish={sessionStats.confluences.bullishCount}
+                    bearish={sessionStats.confluences.bearishCount}
+                  />
                 </div>
 
                 <div className="signal-stats-grid">
@@ -1254,7 +1510,11 @@ function App() {
             SELL AGGRESSION
           </span>
         </div>
-        <div className="bubble-count">{bubbles.length} bubbles</div>
+        <div className="bubble-count">
+          {selectedSymbol === 'all'
+            ? `${bubbles.length} bubbles`
+            : `${filteredBubbles.length}/${bubbles.length} bubbles`}
+        </div>
       </footer>
     </div>
   );

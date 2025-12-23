@@ -430,9 +430,17 @@ impl ProcessingState {
         let imbalance_ratio = delta.abs() as f64 / total_volume as f64;
         let is_significant_imbalance = imbalance_ratio > 0.15;
 
+        // Get symbol from dominant trades (or first trade if empty)
+        let symbol = dominant_trades
+            .first()
+            .map(|t| t.symbol.clone())
+            .or_else(|| self.trade_buffer.first().map(|t| t.symbol.clone()))
+            .unwrap_or_else(|| "UNKNOWN".to_string());
+
         // Create bubble
         let bubble = Bubble {
             id: format!("bubble-{}", self.bubble_counter),
+            symbol,
             price: avg_price,
             size: dominant_volume,
             side: dominant_side.to_string(),
@@ -1194,5 +1202,567 @@ impl ProcessingState {
 impl Default for ProcessingState {
     fn default() -> Self {
         Self::new(None, None, None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper to create a test ProcessingState with a given volume profile
+    fn create_test_state() -> ProcessingState {
+        ProcessingState::new(None, None, None)
+    }
+
+    // ===========================================
+    // STRENGTH CALCULATION TESTS
+    // ===========================================
+
+    #[test]
+    fn test_strength_weak_single_event() {
+        let state = create_test_state();
+        let (strength, num) = state.calculate_strength_with_num(1, false, false);
+        assert_eq!(strength, "weak");
+        assert_eq!(num, 0);
+    }
+
+    #[test]
+    fn test_strength_medium_two_events() {
+        let state = create_test_state();
+        let (strength, num) = state.calculate_strength_with_num(2, false, false);
+        assert_eq!(strength, "medium");
+        assert_eq!(num, 1);
+    }
+
+    #[test]
+    fn test_strength_strong_three_events() {
+        let state = create_test_state();
+        let (strength, num) = state.calculate_strength_with_num(3, false, false);
+        assert_eq!(strength, "strong");
+        assert_eq!(num, 2);
+    }
+
+    #[test]
+    fn test_strength_defended_four_events() {
+        let state = create_test_state();
+        let (strength, num) = state.calculate_strength_with_num(4, false, false);
+        assert_eq!(strength, "defended");
+        assert_eq!(num, 3);
+    }
+
+    #[test]
+    fn test_strength_bonus_from_key_level() {
+        let state = create_test_state();
+        // Single event at key level should be medium (0 + 1 = 1)
+        let (strength, num) = state.calculate_strength_with_num(1, true, false);
+        assert_eq!(strength, "medium");
+        assert_eq!(num, 1);
+    }
+
+    #[test]
+    fn test_strength_bonus_from_against_trend() {
+        let state = create_test_state();
+        // Single event against trend should be medium (0 + 1 = 1)
+        let (strength, num) = state.calculate_strength_with_num(1, false, true);
+        assert_eq!(strength, "medium");
+        assert_eq!(num, 1);
+    }
+
+    #[test]
+    fn test_strength_bonus_both_key_level_and_against_trend() {
+        let state = create_test_state();
+        // Single event with both bonuses should be strong (0 + 2 = 2)
+        let (strength, num) = state.calculate_strength_with_num(1, true, true);
+        assert_eq!(strength, "strong");
+        assert_eq!(num, 2);
+    }
+
+    #[test]
+    fn test_strength_capped_at_defended() {
+        let state = create_test_state();
+        // 4+ events with both bonuses should still be defended (3 + 2 = 5, capped at defended)
+        let (strength, num) = state.calculate_strength_with_num(5, true, true);
+        assert_eq!(strength, "defended");
+        assert_eq!(num, 3);
+    }
+
+    // ===========================================
+    // STRENGTH NUM TO STRING CONVERSION TESTS
+    // ===========================================
+
+    #[test]
+    fn test_strength_num_to_str() {
+        assert_eq!(ProcessingState::strength_num_to_str(0), "weak");
+        assert_eq!(ProcessingState::strength_num_to_str(1), "medium");
+        assert_eq!(ProcessingState::strength_num_to_str(2), "strong");
+        assert_eq!(ProcessingState::strength_num_to_str(3), "defended");
+        assert_eq!(ProcessingState::strength_num_to_str(4), "defended"); // Overflow case
+    }
+
+    // ===========================================
+    // CVD TREND TESTS
+    // ===========================================
+
+    #[test]
+    fn test_cvd_trend_bullish() {
+        let mut state = create_test_state();
+        state.cvd = 500;
+        state.cvd_5s_ago = 200;
+        let trend = state.get_cvd_trend();
+        assert_eq!(trend, 300); // Positive = bullish
+    }
+
+    #[test]
+    fn test_cvd_trend_bearish() {
+        let mut state = create_test_state();
+        state.cvd = -100;
+        state.cvd_5s_ago = 200;
+        let trend = state.get_cvd_trend();
+        assert_eq!(trend, -300); // Negative = bearish
+    }
+
+    #[test]
+    fn test_cvd_trend_flat() {
+        let mut state = create_test_state();
+        state.cvd = 500;
+        state.cvd_5s_ago = 500;
+        let trend = state.get_cvd_trend();
+        assert_eq!(trend, 0);
+    }
+
+    // ===========================================
+    // VOLUME PROFILE TESTS (POC, VAH, VAL)
+    // ===========================================
+
+    #[test]
+    fn test_poc_empty_profile() {
+        let state = create_test_state();
+        assert!(state.get_poc().is_none());
+    }
+
+    #[test]
+    fn test_poc_single_level() {
+        let mut state = create_test_state();
+        state.volume_profile.insert(
+            20000,
+            VolumeProfileLevel {
+                price: 5000.0,
+                buy_volume: 100,
+                sell_volume: 50,
+                total_volume: 150,
+            },
+        );
+        let poc = state.get_poc();
+        assert_eq!(poc, Some(5000.0));
+    }
+
+    #[test]
+    fn test_poc_multiple_levels() {
+        let mut state = create_test_state();
+        // Add three levels with different volumes
+        state.volume_profile.insert(
+            20000,
+            VolumeProfileLevel {
+                price: 5000.0,
+                buy_volume: 100,
+                sell_volume: 50,
+                total_volume: 150,
+            },
+        );
+        state.volume_profile.insert(
+            20004,
+            VolumeProfileLevel {
+                price: 5001.0,
+                buy_volume: 200,
+                sell_volume: 150,
+                total_volume: 350, // Highest volume - this should be POC
+            },
+        );
+        state.volume_profile.insert(
+            20008,
+            VolumeProfileLevel {
+                price: 5002.0,
+                buy_volume: 80,
+                sell_volume: 70,
+                total_volume: 150,
+            },
+        );
+
+        let poc = state.get_poc();
+        assert_eq!(poc, Some(5001.0)); // Highest volume level
+    }
+
+    #[test]
+    fn test_value_area_empty_profile() {
+        let state = create_test_state();
+        assert!(state.get_value_area().is_none());
+    }
+
+    // ===========================================
+    // KEY LEVEL DETECTION TESTS
+    // ===========================================
+
+    #[test]
+    fn test_is_at_key_level_empty_profile() {
+        let state = create_test_state();
+        let (at_poc, at_vah, at_val) = state.is_at_key_level(5000.0);
+        assert!(!at_poc);
+        assert!(!at_vah);
+        assert!(!at_val);
+    }
+
+    #[test]
+    fn test_is_at_key_level_at_poc() {
+        let mut state = create_test_state();
+        // Create a profile with POC at 5000.0
+        state.volume_profile.insert(
+            20000,
+            VolumeProfileLevel {
+                price: 5000.0,
+                buy_volume: 500,
+                sell_volume: 500,
+                total_volume: 1000,
+            },
+        );
+
+        let (at_poc, _, _) = state.is_at_key_level(5000.0);
+        assert!(at_poc);
+
+        // Also test near POC (within tolerance of 0.5)
+        let (at_poc_near, _, _) = state.is_at_key_level(5000.3);
+        assert!(at_poc_near);
+
+        // Test outside tolerance
+        let (at_poc_far, _, _) = state.is_at_key_level(5001.0);
+        assert!(!at_poc_far);
+    }
+
+    // ===========================================
+    // AVERAGE VOLUME TESTS
+    // ===========================================
+
+    #[test]
+    fn test_avg_volume_empty_history() {
+        let state = create_test_state();
+        let avg = state.get_avg_volume_per_second(30);
+        assert_eq!(avg, 200.0); // Default baseline
+    }
+
+    // ===========================================
+    // SIGNAL STATS CALCULATION TESTS
+    // ===========================================
+
+    #[test]
+    fn test_calculate_signal_stats_empty() {
+        let state = create_test_state();
+        let stats = state.calculate_signal_stats("delta_flip");
+        assert_eq!(stats.count, 0);
+        assert_eq!(stats.wins, 0);
+        assert_eq!(stats.losses, 0);
+        assert_eq!(stats.win_rate, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_signal_stats_with_signals() {
+        let mut state = create_test_state();
+
+        // Add some test signals
+        state.signal_history.push(SignalRecord {
+            timestamp: 1000,
+            price: 5000.0,
+            signal_type: "delta_flip".to_string(),
+            direction: "bullish".to_string(),
+            price_after_1m: Some(5005.0),
+            price_after_5m: Some(5010.0),
+            outcome: Some("win".to_string()),
+        });
+
+        state.signal_history.push(SignalRecord {
+            timestamp: 2000,
+            price: 5010.0,
+            signal_type: "delta_flip".to_string(),
+            direction: "bearish".to_string(),
+            price_after_1m: Some(5005.0),
+            price_after_5m: Some(5000.0),
+            outcome: Some("win".to_string()),
+        });
+
+        state.signal_history.push(SignalRecord {
+            timestamp: 3000,
+            price: 5000.0,
+            signal_type: "delta_flip".to_string(),
+            direction: "bullish".to_string(),
+            price_after_1m: Some(4990.0),
+            price_after_5m: Some(4980.0),
+            outcome: Some("loss".to_string()),
+        });
+
+        let stats = state.calculate_signal_stats("delta_flip");
+
+        assert_eq!(stats.count, 3);
+        assert_eq!(stats.bullish_count, 2);
+        assert_eq!(stats.bearish_count, 1);
+        assert_eq!(stats.wins, 2);
+        assert_eq!(stats.losses, 1);
+        // Win rate should be 66.67% (2/3)
+        assert!((stats.win_rate - 66.666).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_calculate_signal_stats_different_types() {
+        let mut state = create_test_state();
+
+        // Add delta_flip signals
+        state.signal_history.push(SignalRecord {
+            timestamp: 1000,
+            price: 5000.0,
+            signal_type: "delta_flip".to_string(),
+            direction: "bullish".to_string(),
+            price_after_1m: None,
+            price_after_5m: None,
+            outcome: None,
+        });
+
+        // Add absorption signals
+        state.signal_history.push(SignalRecord {
+            timestamp: 2000,
+            price: 5010.0,
+            signal_type: "absorption".to_string(),
+            direction: "bearish".to_string(),
+            price_after_1m: None,
+            price_after_5m: None,
+            outcome: None,
+        });
+
+        state.signal_history.push(SignalRecord {
+            timestamp: 3000,
+            price: 5020.0,
+            signal_type: "absorption".to_string(),
+            direction: "bullish".to_string(),
+            price_after_1m: None,
+            price_after_5m: None,
+            outcome: None,
+        });
+
+        // Check that stats are calculated separately by type
+        let delta_stats = state.calculate_signal_stats("delta_flip");
+        assert_eq!(delta_stats.count, 1);
+
+        let absorption_stats = state.calculate_signal_stats("absorption");
+        assert_eq!(absorption_stats.count, 2);
+
+        let stacked_stats = state.calculate_signal_stats("stacked_imbalance");
+        assert_eq!(stacked_stats.count, 0);
+    }
+
+    // ===========================================
+    // TRADE PROCESSING TESTS
+    // ===========================================
+
+    #[test]
+    fn test_add_trade_updates_cvd_buy() {
+        let mut state = create_test_state();
+        assert_eq!(state.cvd, 0);
+
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 100,
+            side: "buy".to_string(),
+            timestamp: 1000,
+        });
+
+        assert_eq!(state.cvd, 100); // Buy adds to CVD
+        assert_eq!(state.total_buy_volume, 100);
+        assert_eq!(state.total_sell_volume, 0);
+    }
+
+    #[test]
+    fn test_add_trade_updates_cvd_sell() {
+        let mut state = create_test_state();
+        assert_eq!(state.cvd, 0);
+
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 50,
+            side: "sell".to_string(),
+            timestamp: 1000,
+        });
+
+        assert_eq!(state.cvd, -50); // Sell subtracts from CVD
+        assert_eq!(state.total_buy_volume, 0);
+        assert_eq!(state.total_sell_volume, 50);
+    }
+
+    #[test]
+    fn test_add_trade_updates_volume_profile() {
+        let mut state = create_test_state();
+
+        // Add a buy trade at 5000.0
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 100,
+            side: "buy".to_string(),
+            timestamp: 1000,
+        });
+
+        // Price key = 5000.0 * 4 = 20000
+        let level = state.volume_profile.get(&20000);
+        assert!(level.is_some());
+        let level = level.unwrap();
+        assert_eq!(level.buy_volume, 100);
+        assert_eq!(level.sell_volume, 0);
+        assert_eq!(level.total_volume, 100);
+    }
+
+    #[test]
+    fn test_add_trade_accumulates_at_same_price() {
+        let mut state = create_test_state();
+
+        // Add multiple trades at same price
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 100,
+            side: "buy".to_string(),
+            timestamp: 1000,
+        });
+
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 50,
+            side: "sell".to_string(),
+            timestamp: 1001,
+        });
+
+        let level = state.volume_profile.get(&20000).unwrap();
+        assert_eq!(level.buy_volume, 100);
+        assert_eq!(level.sell_volume, 50);
+        assert_eq!(level.total_volume, 150);
+    }
+
+    #[test]
+    fn test_add_trade_tracks_window_prices() {
+        let mut state = create_test_state();
+        assert!(state.window_first_price.is_none());
+        assert!(state.window_last_price.is_none());
+
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5000.0,
+            size: 100,
+            side: "buy".to_string(),
+            timestamp: 1000,
+        });
+
+        assert_eq!(state.window_first_price, Some(5000.0));
+        assert_eq!(state.window_last_price, Some(5000.0));
+
+        state.add_trade(Trade {
+            symbol: "NQ".to_string(),
+            price: 5005.0,
+            size: 50,
+            side: "buy".to_string(),
+            timestamp: 1001,
+        });
+
+        // First price stays the same, last price updates
+        assert_eq!(state.window_first_price, Some(5000.0));
+        assert_eq!(state.window_last_price, Some(5005.0));
+    }
+
+    // ===========================================
+    // OUTCOME DETERMINATION TESTS
+    // ===========================================
+
+    #[test]
+    fn test_outcome_bullish_win() {
+        // Bullish signal, price goes up by > 2 points = win
+        let price = 5000.0;
+        let price_after_5m = 5005.0;
+        let direction = "bullish";
+        let move_amount = price_after_5m - price;
+        let min_move = 2.0;
+
+        let outcome = if direction == "bullish" {
+            if move_amount >= min_move { "win" }
+            else if move_amount <= -min_move { "loss" }
+            else { "breakeven" }
+        } else {
+            if move_amount <= -min_move { "win" }
+            else if move_amount >= min_move { "loss" }
+            else { "breakeven" }
+        };
+
+        assert_eq!(outcome, "win");
+    }
+
+    #[test]
+    fn test_outcome_bullish_loss() {
+        // Bullish signal, price goes down by > 2 points = loss
+        let price = 5000.0;
+        let price_after_5m = 4995.0;
+        let direction = "bullish";
+        let move_amount = price_after_5m - price;
+        let min_move = 2.0;
+
+        let outcome = if direction == "bullish" {
+            if move_amount >= min_move { "win" }
+            else if move_amount <= -min_move { "loss" }
+            else { "breakeven" }
+        } else {
+            if move_amount <= -min_move { "win" }
+            else if move_amount >= min_move { "loss" }
+            else { "breakeven" }
+        };
+
+        assert_eq!(outcome, "loss");
+    }
+
+    #[test]
+    fn test_outcome_bearish_win() {
+        // Bearish signal, price goes down by > 2 points = win
+        let price = 5000.0;
+        let price_after_5m = 4995.0;
+        let direction = "bearish";
+        let move_amount = price_after_5m - price;
+        let min_move = 2.0;
+
+        let outcome = if direction == "bullish" {
+            if move_amount >= min_move { "win" }
+            else if move_amount <= -min_move { "loss" }
+            else { "breakeven" }
+        } else {
+            if move_amount <= -min_move { "win" }
+            else if move_amount >= min_move { "loss" }
+            else { "breakeven" }
+        };
+
+        assert_eq!(outcome, "win");
+    }
+
+    #[test]
+    fn test_outcome_breakeven() {
+        // Price movement within +/- 2 points = breakeven
+        let price = 5000.0;
+        let price_after_5m = 5001.0;
+        let direction = "bullish";
+        let move_amount = price_after_5m - price;
+        let min_move = 2.0;
+
+        let outcome = if direction == "bullish" {
+            if move_amount >= min_move { "win" }
+            else if move_amount <= -min_move { "loss" }
+            else { "breakeven" }
+        } else {
+            if move_amount <= -min_move { "win" }
+            else if move_amount >= min_move { "loss" }
+            else { "breakeven" }
+        };
+
+        assert_eq!(outcome, "breakeven");
     }
 }

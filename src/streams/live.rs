@@ -45,6 +45,7 @@ pub async fn run_databento_stream(
     // Notify clients we're connected
     let _ = state.tx.send(WsMessage::Connected {
         symbols: symbols.clone(),
+        mode: state.mode.clone(),
     });
 
     // Start streaming

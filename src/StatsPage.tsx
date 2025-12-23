@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { RustWebSocket, WsMessage } from './websocket';
 import { StatsCharts } from './StatsCharts';
+import { TimeSeriesChart } from './TimeSeriesChart';
 
 interface Signal {
   id: string;
@@ -13,6 +14,29 @@ interface Signal {
   price_after_1m: number | null;
   price_after_5m: number | null;
   outcome: string | null;
+}
+
+interface SignalAnnotation {
+  signalId: string;
+  note: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// localStorage helpers for annotations
+const ANNOTATIONS_KEY = 'signal_annotations';
+
+function loadAnnotations(): Record<string, SignalAnnotation> {
+  try {
+    const stored = localStorage.getItem(ANNOTATIONS_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAnnotations(annotations: Record<string, SignalAnnotation>) {
+  localStorage.setItem(ANNOTATIONS_KEY, JSON.stringify(annotations));
 }
 
 interface SignalTypeStats {
@@ -70,9 +94,61 @@ export function StatsPage({ onClose }: StatsPageProps) {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  // Session comparison
+  const [selectedSessions, setSelectedSessions] = useState<string[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
+
   // Live session stats from WebSocket
   const [liveStats, setLiveStats] = useState<LiveSessionStats | null>(null);
   const wsRef = useRef<RustWebSocket | null>(null);
+
+  // Annotations
+  const [annotations, setAnnotations] = useState<Record<string, SignalAnnotation>>({});
+  const [editingAnnotation, setEditingAnnotation] = useState<string | null>(null);
+  const [annotationText, setAnnotationText] = useState('');
+
+  // Load annotations on mount
+  useEffect(() => {
+    setAnnotations(loadAnnotations());
+  }, []);
+
+  const handleSaveAnnotation = useCallback((signalId: string) => {
+    const now = Date.now();
+    const existing = annotations[signalId];
+
+    if (!annotationText.trim()) {
+      // Delete annotation if text is empty
+      const updated = { ...annotations };
+      delete updated[signalId];
+      setAnnotations(updated);
+      saveAnnotations(updated);
+    } else {
+      const updated = {
+        ...annotations,
+        [signalId]: {
+          signalId,
+          note: annotationText.trim(),
+          createdAt: existing?.createdAt || now,
+          updatedAt: now,
+        },
+      };
+      setAnnotations(updated);
+      saveAnnotations(updated);
+    }
+
+    setEditingAnnotation(null);
+    setAnnotationText('');
+  }, [annotations, annotationText]);
+
+  const handleStartEditing = useCallback((signalId: string) => {
+    setEditingAnnotation(signalId);
+    setAnnotationText(annotations[signalId]?.note || '');
+  }, [annotations]);
+
+  const handleCancelEditing = useCallback(() => {
+    setEditingAnnotation(null);
+    setAnnotationText('');
+  }, []);
 
   // WebSocket connection for live stats
   useEffect(() => {
@@ -229,6 +305,13 @@ export function StatsPage({ onClose }: StatsPageProps) {
       {activeTab === 'overview' && stats && (
         <div className="stats-overview-page">
           <StatsCharts stats={stats} />
+          <TimeSeriesChart
+            signals={signals.map(s => ({
+              timestamp: s.timestamp,
+              outcome: s.outcome,
+              direction: s.direction,
+            }))}
+          />
           <div className="stats-summary-cards">
             <div className="summary-card">
               <div className="summary-value">{stats.total_signals}</div>
@@ -337,25 +420,77 @@ export function StatsPage({ onClose }: StatsPageProps) {
                   <th>1m Price</th>
                   <th>5m Price</th>
                   <th>Outcome</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
-                {signals.map(signal => (
-                  <tr key={signal.id} className={signal.direction}>
-                    <td>{formatTime(signal.timestamp)}</td>
-                    <td>{signal.signal_type.replace('_', ' ')}</td>
-                    <td className={signal.direction}>{signal.direction}</td>
-                    <td>{formatPrice(signal.price)}</td>
-                    <td>{formatPrice(signal.price_after_1m)}</td>
-                    <td>{formatPrice(signal.price_after_5m)}</td>
-                    <td className={getOutcomeClass(signal.outcome)}>
-                      {signal.outcome || 'pending'}
-                    </td>
-                  </tr>
-                ))}
+                {signals.map(signal => {
+                  const annotation = annotations[signal.id];
+                  const isEditing = editingAnnotation === signal.id;
+
+                  return (
+                    <tr key={signal.id} className={signal.direction}>
+                      <td>{formatTime(signal.timestamp)}</td>
+                      <td>{signal.signal_type.replace('_', ' ')}</td>
+                      <td className={signal.direction}>{signal.direction}</td>
+                      <td>{formatPrice(signal.price)}</td>
+                      <td>{formatPrice(signal.price_after_1m)}</td>
+                      <td>{formatPrice(signal.price_after_5m)}</td>
+                      <td className={getOutcomeClass(signal.outcome)}>
+                        {signal.outcome || 'pending'}
+                      </td>
+                      <td className="annotation-cell">
+                        {isEditing ? (
+                          <div className="annotation-edit">
+                            <textarea
+                              value={annotationText}
+                              onChange={(e) => setAnnotationText(e.target.value)}
+                              placeholder="Add notes..."
+                              autoFocus
+                              rows={2}
+                            />
+                            <div className="annotation-actions">
+                              <button
+                                className="save-annotation-btn"
+                                onClick={() => handleSaveAnnotation(signal.id)}
+                              >
+                                Save
+                              </button>
+                              <button
+                                className="cancel-annotation-btn"
+                                onClick={handleCancelEditing}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : annotation ? (
+                          <div
+                            className="annotation-display"
+                            onClick={() => handleStartEditing(signal.id)}
+                            title="Click to edit"
+                          >
+                            <span className="annotation-text">{annotation.note}</span>
+                            <span className="annotation-meta">
+                              {new Date(annotation.updatedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            className="add-annotation-btn"
+                            onClick={() => handleStartEditing(signal.id)}
+                            title="Add note"
+                          >
+                            + Add Note
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {signals.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="no-data">No signals found</td>
+                    <td colSpan={8} className="no-data">No signals found</td>
                   </tr>
                 )}
               </tbody>
@@ -366,39 +501,91 @@ export function StatsPage({ onClose }: StatsPageProps) {
 
       {activeTab === 'sessions' && (
         <div className="sessions-tab">
+          {selectedSessions.length === 2 && (
+            <div className="compare-toolbar">
+              <span>{selectedSessions.length} sessions selected</span>
+              <button
+                className="compare-btn"
+                onClick={() => setShowComparison(true)}
+              >
+                Compare Sessions
+              </button>
+              <button
+                className="clear-selection-btn"
+                onClick={() => setSelectedSessions([])}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          {selectedSessions.length === 1 && (
+            <div className="compare-toolbar">
+              <span>Select 1 more session to compare</span>
+              <button
+                className="clear-selection-btn"
+                onClick={() => setSelectedSessions([])}
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="sessions-list">
             {sessions.map(session => (
-              <div key={session.id} className="session-card">
-                <div className="session-header">
-                  <span className={`mode-badge ${session.mode}`}>{session.mode.toUpperCase()}</span>
-                  <span className="session-time">
-                    {new Date(session.started_at).toLocaleString()}
-                  </span>
+              <div
+                key={session.id}
+                className={`session-card ${selectedSessions.includes(session.id) ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedSessions(prev => {
+                    if (prev.includes(session.id)) {
+                      return prev.filter(id => id !== session.id);
+                    }
+                    if (prev.length >= 2) {
+                      return [prev[1], session.id];
+                    }
+                    return [...prev, session.id];
+                  });
+                }}
+              >
+                <div className="session-select">
+                  <input
+                    type="checkbox"
+                    checked={selectedSessions.includes(session.id)}
+                    onChange={(e) => e.stopPropagation()}
+                    readOnly
+                  />
                 </div>
-                <div className="session-details">
-                  <div className="detail">
-                    <span className="label">Symbols:</span>
-                    <span className="value">{session.symbols.join(', ')}</span>
+                <div className="session-content">
+                  <div className="session-header">
+                    <span className={`mode-badge ${session.mode}`}>{session.mode.toUpperCase()}</span>
+                    <span className="session-time">
+                      {new Date(session.started_at).toLocaleString()}
+                    </span>
                   </div>
-                  {session.session_high && session.session_low && (
+                  <div className="session-details">
                     <div className="detail">
-                      <span className="label">Range:</span>
-                      <span className="value">
-                        {session.session_low.toFixed(2)} - {session.session_high.toFixed(2)}
+                      <span className="label">Symbols:</span>
+                      <span className="value">{session.symbols.join(', ')}</span>
+                    </div>
+                    {session.session_high && session.session_low && (
+                      <div className="detail">
+                        <span className="label">Range:</span>
+                        <span className="value">
+                          {session.session_low.toFixed(2)} - {session.session_high.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {session.total_volume !== null && (
+                      <div className="detail">
+                        <span className="label">Volume:</span>
+                        <span className="value">{session.total_volume.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="detail">
+                      <span className="label">Status:</span>
+                      <span className={`value ${session.ended_at ? 'ended' : 'active'}`}>
+                        {session.ended_at ? 'Ended' : 'Active'}
                       </span>
                     </div>
-                  )}
-                  {session.total_volume !== null && (
-                    <div className="detail">
-                      <span className="label">Volume:</span>
-                      <span className="value">{session.total_volume.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="detail">
-                    <span className="label">Status:</span>
-                    <span className={`value ${session.ended_at ? 'ended' : 'active'}`}>
-                      {session.ended_at ? 'Ended' : 'Active'}
-                    </span>
                   </div>
                 </div>
               </div>
@@ -407,6 +594,78 @@ export function StatsPage({ onClose }: StatsPageProps) {
               <div className="no-data">No sessions found</div>
             )}
           </div>
+
+          {/* Session Comparison Modal */}
+          {showComparison && selectedSessions.length === 2 && (
+            <div className="comparison-modal-overlay" onClick={() => setShowComparison(false)}>
+              <div className="comparison-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="comparison-header">
+                  <h3>Session Comparison</h3>
+                  <button className="close-btn" onClick={() => setShowComparison(false)}>✕</button>
+                </div>
+                <div className="comparison-content">
+                  {selectedSessions.map(sessionId => {
+                    const session = sessions.find(s => s.id === sessionId);
+                    if (!session) return null;
+                    return (
+                      <div key={sessionId} className="comparison-column">
+                        <div className="comparison-session-header">
+                          <span className={`mode-badge ${session.mode}`}>{session.mode.toUpperCase()}</span>
+                          <span className="session-date">
+                            {new Date(session.started_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="comparison-stats">
+                          <div className="comparison-stat">
+                            <span className="stat-label">Started</span>
+                            <span className="stat-value">
+                              {new Date(session.started_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <div className="comparison-stat">
+                            <span className="stat-label">Symbols</span>
+                            <span className="stat-value">{session.symbols.join(', ')}</span>
+                          </div>
+                          {session.session_high !== null && (
+                            <div className="comparison-stat">
+                              <span className="stat-label">High</span>
+                              <span className="stat-value">{session.session_high?.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {session.session_low !== null && (
+                            <div className="comparison-stat">
+                              <span className="stat-label">Low</span>
+                              <span className="stat-value">{session.session_low?.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {session.session_high && session.session_low && (
+                            <div className="comparison-stat">
+                              <span className="stat-label">Range</span>
+                              <span className="stat-value">
+                                {(session.session_high - session.session_low).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          {session.total_volume !== null && (
+                            <div className="comparison-stat">
+                              <span className="stat-label">Volume</span>
+                              <span className="stat-value">{session.total_volume?.toLocaleString()}</span>
+                            </div>
+                          )}
+                          <div className="comparison-stat">
+                            <span className="stat-label">Status</span>
+                            <span className={`stat-value ${session.ended_at ? 'ended' : 'active'}`}>
+                              {session.ended_at ? 'Ended' : 'Active'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
