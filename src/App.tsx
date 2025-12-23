@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { RustWebSocket, WsMessage } from './websocket';
 import { BubbleRenderer } from './BubbleRenderer';
+import { StatsPage } from './StatsPage';
 import './App.css';
 
 interface Bubble {
@@ -236,7 +237,7 @@ function App() {
   const [_confluenceEvents, setConfluenceEvents] = useState<ConfluenceEvent[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [showConfluenceBadge, setShowConfluenceBadge] = useState<ConfluenceEvent | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
-  const [currentView, setCurrentView] = useState<'chart' | 'stats'>('chart');
+  const [currentView, setCurrentView] = useState<'chart' | 'stats' | 'history'>('chart');
 
   const wsRef = useRef<RustWebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -815,12 +816,19 @@ function App() {
           {isConnected && (
             <button
               className={`view-toggle-btn ${currentView === 'stats' ? 'active' : ''}`}
-              onClick={() => setCurrentView(currentView === 'chart' ? 'stats' : 'chart')}
-              title={currentView === 'chart' ? 'View Session Stats' : 'Back to Chart'}
+              onClick={() => setCurrentView(currentView === 'stats' ? 'chart' : 'stats')}
+              title={currentView === 'stats' ? 'Back to Chart' : 'View Session Stats'}
             >
-              {currentView === 'chart' ? '📊' : '📈'}
+              📊
             </button>
           )}
+          <button
+            className={`view-toggle-btn ${currentView === 'history' ? 'active' : ''}`}
+            onClick={() => setCurrentView(currentView === 'history' ? 'chart' : 'history')}
+            title={currentView === 'history' ? 'Back to Chart' : 'View Historical Stats'}
+          >
+            📜
+          </button>
         </div>
       </header>
 
@@ -1007,57 +1015,59 @@ function App() {
         {currentView === 'chart' ? (
           <>
             <BubbleRenderer
-          bubbles={bubbles}
-          priceRange={priceRange}
-          canvasRef={canvasRef}
-          cvdHistory={cvdHistory}
-          cvdRange={cvdRange}
-          currentCVD={currentCVD}
-          zeroCrosses={zeroCrosses}
-          onClick={handleCanvasClick}
-          volumeProfile={volumeProfile}
-          absorptionZones={absorptionZones}
-          stackedImbalances={stackedImbalances}
-        />
+              bubbles={bubbles}
+              priceRange={priceRange}
+              canvasRef={canvasRef}
+              cvdHistory={cvdHistory}
+              cvdRange={cvdRange}
+              currentCVD={currentCVD}
+              zeroCrosses={zeroCrosses}
+              onClick={handleCanvasClick}
+              volumeProfile={volumeProfile}
+              absorptionZones={absorptionZones}
+              stackedImbalances={stackedImbalances}
+            />
 
-        {/* Bubble Info Tooltip */}
-        {selectedBubble && clickPosition && (
-          <div
-            className="bubble-info-tooltip"
-            style={{
-              left: `${clickPosition.x}px`,
-              top: `${clickPosition.y}px`,
-            }}
-            onClick={() => {
-              setSelectedBubble(null);
-              setClickPosition(null);
-            }}
-          >
-            <div className="tooltip-header">
-              <span className={`tooltip-side ${selectedBubble.side}`}>
-                {selectedBubble.side.toUpperCase()}
-              </span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">Size:</span>
-              <span className="tooltip-value">{selectedBubble.size} contracts</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">Price:</span>
-              <span className="tooltip-value">{selectedBubble.price.toFixed(2)}</span>
-            </div>
-            <div className="tooltip-row">
-              <span className="tooltip-label">Time:</span>
-              <span className="tooltip-value">
-                {new Date(selectedBubble.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-            <div className="tooltip-footer">Click to close</div>
-          </div>
-        )}
+            {/* Bubble Info Tooltip */}
+            {selectedBubble && clickPosition && (
+              <div
+                className="bubble-info-tooltip"
+                style={{
+                  left: `${clickPosition.x}px`,
+                  top: `${clickPosition.y}px`,
+                }}
+                onClick={() => {
+                  setSelectedBubble(null);
+                  setClickPosition(null);
+                }}
+              >
+                <div className="tooltip-header">
+                  <span className={`tooltip-side ${selectedBubble.side}`}>
+                    {selectedBubble.side.toUpperCase()}
+                  </span>
+                </div>
+                <div className="tooltip-row">
+                  <span className="tooltip-label">Size:</span>
+                  <span className="tooltip-value">{selectedBubble.size} contracts</span>
+                </div>
+                <div className="tooltip-row">
+                  <span className="tooltip-label">Price:</span>
+                  <span className="tooltip-value">{selectedBubble.price.toFixed(2)}</span>
+                </div>
+                <div className="tooltip-row">
+                  <span className="tooltip-label">Time:</span>
+                  <span className="tooltip-value">
+                    {new Date(selectedBubble.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="tooltip-footer">Click to close</div>
+              </div>
+            )}
           </>
+        ) : currentView === 'history' ? (
+          <StatsPage onClose={() => setCurrentView('chart')} />
         ) : (
-          /* Stats View */
+          /* Session Stats View */
           <div className="stats-view">
             <h2>Session Statistics</h2>
             {sessionStats ? (

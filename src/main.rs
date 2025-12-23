@@ -1,3 +1,4 @@
+mod api;
 mod processing;
 mod streams;
 mod supabase;
@@ -203,19 +204,27 @@ async fn main() -> Result<()> {
         });
     }
 
-    // Build router
+    // Build router with API endpoints
     let app = Router::new()
         .route("/ws", get(ws_handler))
+        .route("/api/signals", get(api::get_signals))
+        .route("/api/sessions", get(api::get_sessions))
+        .route("/api/stats", get(api::get_stats))
         .nest_service("/", ServeDir::new("dist"))
         .layer(CorsLayer::new().allow_origin(Any))
-        .with_state(state);
+        .with_state(state.clone());
 
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
     info!("Server running at http://{}", addr);
     info!("WebSocket endpoint: ws://localhost:{}/ws", args.port);
+    info!("API endpoints: /api/signals, /api/sessions, /api/stats");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+
+    // Run server with graceful shutdown
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(state))
+        .await?;
 
     Ok(())
 }
@@ -276,4 +285,24 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
     }
 
     info!("WebSocket client disconnected");
+}
+
+/// Graceful shutdown handler - finalize session on Ctrl+C
+async fn shutdown_signal(state: Arc<AppState>) {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for shutdown signal");
+
+    info!("🛑 Shutdown signal received, finalizing session...");
+
+    // Finalize session in Supabase
+    if let (Some(ref supabase), Some(session_id)) = (&state.supabase, state.session_id) {
+        // Note: We can't easily access ProcessingState stats here since they're in the stream tasks
+        // For now, just update ended_at timestamp
+        if let Err(e) = supabase.update_session(session_id, 0.0, 0.0, 0).await {
+            error!("Failed to finalize session: {}", e);
+        } else {
+            info!("📊 Session finalized: {}", session_id);
+        }
+    }
 }

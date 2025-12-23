@@ -3,7 +3,7 @@ use tokio::sync::broadcast;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::supabase::{SignalInsert, SupabaseClient};
+use crate::supabase::{SignalInsert, SignalOutcomeUpdate, SupabaseClient};
 use crate::types::{
     AbsorptionEvent, AbsorptionZone, Bubble, CVDPoint, ConfluenceEvent, DeltaFlip,
     SessionStats, SignalRecord, SignalStats, StackedImbalance, Trade, VolumeProfileLevel,
@@ -82,6 +82,8 @@ pub struct ProcessingState {
     // Supabase persistence (optional)
     supabase: Option<SupabaseClient>,
     session_id: Option<Uuid>,
+    // Pending outcome updates to batch send to Supabase
+    pending_outcome_updates: Vec<SignalOutcomeUpdate>,
 }
 
 impl ProcessingState {
@@ -120,6 +122,7 @@ impl ProcessingState {
             // Supabase
             supabase,
             session_id,
+            pending_outcome_updates: Vec::new(),
         }
     }
 
@@ -990,9 +993,12 @@ impl ProcessingState {
     /// Update past signals with price outcomes (1m and 5m after)
     fn update_signal_outcomes(&mut self, now: u64, current_price: f64) {
         for record in &mut self.signal_history {
+            let mut needs_update = false;
+
             // Update 1-minute price if 1 minute has passed
             if record.price_after_1m.is_none() && now.saturating_sub(record.timestamp) >= 60_000 {
                 record.price_after_1m = Some(current_price);
+                needs_update = true;
             }
 
             // Update 5-minute price and determine outcome
@@ -1024,6 +1030,20 @@ impl ProcessingState {
                     }
                     .to_string(),
                 );
+                needs_update = true;
+            }
+
+            // Queue Supabase update if we changed anything
+            if needs_update {
+                if let Some(session_id) = self.session_id {
+                    self.pending_outcome_updates.push(SignalOutcomeUpdate {
+                        session_id,
+                        timestamp: record.timestamp as i64,
+                        price_after_1m: record.price_after_1m,
+                        price_after_5m: record.price_after_5m,
+                        outcome: record.outcome.clone(),
+                    });
+                }
             }
         }
 
@@ -1098,8 +1118,8 @@ impl ProcessingState {
         }
     }
 
-    /// Broadcast session stats to clients
-    fn broadcast_stats(&self, tx: &broadcast::Sender<WsMessage>, _now: u64) {
+    /// Broadcast session stats to clients and flush pending outcome updates
+    fn broadcast_stats(&mut self, tx: &broadcast::Sender<WsMessage>, _now: u64) {
         let stats = SessionStats {
             session_start: self.session_start,
             delta_flips: self.calculate_signal_stats("delta_flip"),
@@ -1121,6 +1141,26 @@ impl ProcessingState {
         };
 
         let _ = tx.send(WsMessage::SessionStats(stats));
+
+        // Flush pending outcome updates to Supabase
+        if let Some(client) = &self.supabase {
+            let updates = std::mem::take(&mut self.pending_outcome_updates);
+            if !updates.is_empty() {
+                let client = client.clone();
+                tokio::spawn(async move {
+                    client.update_signal_outcomes(updates).await;
+                });
+            }
+        }
+    }
+
+    /// Get session stats for finalization
+    pub fn get_session_stats(&self) -> (f64, f64, u64) {
+        (
+            if self.session_high > 0.0 { self.session_high } else { self.current_price },
+            if self.session_low < f64::MAX { self.session_low } else { self.current_price },
+            self.total_buy_volume + self.total_sell_volume,
+        )
     }
 
     /// Send the current volume profile to clients

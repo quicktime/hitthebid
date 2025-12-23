@@ -269,3 +269,229 @@ pub struct SignalOutcomeUpdate {
     pub price_after_5m: Option<f64>,
     pub outcome: Option<String>,
 }
+
+/// Signal row from database
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalRow {
+    pub id: Uuid,
+    pub session_id: Option<Uuid>,
+    pub created_at: String,
+    pub timestamp: i64,
+    pub signal_type: String,
+    pub direction: String,
+    pub price: f64,
+    pub price_after_1m: Option<f64>,
+    pub price_after_5m: Option<f64>,
+    pub outcome: Option<String>,
+    pub metadata: Option<serde_json::Value>,
+}
+
+/// Session row from database
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionRow {
+    pub id: Uuid,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub mode: String,
+    pub symbols: Vec<String>,
+    pub session_high: Option<f64>,
+    pub session_low: Option<f64>,
+    pub total_volume: Option<i64>,
+}
+
+/// Aggregate stats response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregateStats {
+    pub total_signals: u32,
+    pub by_type: std::collections::HashMap<String, SignalTypeStats>,
+    pub by_direction: DirectionStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalTypeStats {
+    pub count: u32,
+    pub wins: u32,
+    pub losses: u32,
+    pub breakeven: u32,
+    pub win_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirectionStats {
+    pub bullish: u32,
+    pub bearish: u32,
+}
+
+/// Query parameters for signals
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SignalQuery {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+    pub signal_type: Option<String>,
+    pub direction: Option<String>,
+    pub outcome: Option<String>,
+}
+
+impl SupabaseClient {
+    /// Get signals with optional filtering and pagination
+    pub async fn query_signals(&self, query: &SignalQuery) -> Result<Vec<SignalRow>> {
+        let limit = query.limit.unwrap_or(50).min(200);
+        let offset = query.offset.unwrap_or(0);
+
+        let mut url = format!("signals?select=*&order=timestamp.desc&limit={}&offset={}", limit, offset);
+
+        if let Some(ref signal_type) = query.signal_type {
+            url.push_str(&format!("&signal_type=eq.{}", signal_type));
+        }
+        if let Some(ref direction) = query.direction {
+            url.push_str(&format!("&direction=eq.{}", direction));
+        }
+        if let Some(ref outcome) = query.outcome {
+            url.push_str(&format!("&outcome=eq.{}", outcome));
+        }
+
+        let response = self
+            .request(reqwest::Method::GET, &url)
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Failed to query signals: {} - {}", status, body));
+        }
+
+        let signals: Vec<SignalRow> = response.json().await?;
+        Ok(signals)
+    }
+
+    /// Get sessions list
+    pub async fn query_sessions(&self, limit: u32) -> Result<Vec<SessionRow>> {
+        let url = format!("sessions?select=*&order=started_at.desc&limit={}", limit.min(100));
+
+        let response = self
+            .request(reqwest::Method::GET, &url)
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Failed to query sessions: {} - {}", status, body));
+        }
+
+        let sessions: Vec<SessionRow> = response.json().await?;
+        Ok(sessions)
+    }
+
+    /// Get aggregate stats across all signals
+    pub async fn get_aggregate_stats(&self) -> Result<AggregateStats> {
+        // Get all signals with outcomes
+        let response = self
+            .request(reqwest::Method::GET, "signals?select=signal_type,direction,outcome")
+            .header("Accept", "application/json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(anyhow!("Failed to get aggregate stats: {} - {}", status, body));
+        }
+
+        #[derive(Deserialize)]
+        struct SignalSummary {
+            signal_type: String,
+            direction: String,
+            outcome: Option<String>,
+        }
+
+        let signals: Vec<SignalSummary> = response.json().await?;
+        let total_signals = signals.len() as u32;
+
+        // Aggregate by type
+        let mut by_type: std::collections::HashMap<String, SignalTypeStats> = std::collections::HashMap::new();
+        let mut bullish = 0u32;
+        let mut bearish = 0u32;
+
+        for signal in &signals {
+            // Direction stats
+            if signal.direction == "bullish" {
+                bullish += 1;
+            } else {
+                bearish += 1;
+            }
+
+            // Type stats
+            let entry = by_type.entry(signal.signal_type.clone()).or_insert(SignalTypeStats {
+                count: 0,
+                wins: 0,
+                losses: 0,
+                breakeven: 0,
+                win_rate: 0.0,
+            });
+            entry.count += 1;
+
+            if let Some(ref outcome) = signal.outcome {
+                match outcome.as_str() {
+                    "win" => entry.wins += 1,
+                    "loss" => entry.losses += 1,
+                    "breakeven" => entry.breakeven += 1,
+                    _ => {}
+                }
+            }
+        }
+
+        // Calculate win rates
+        for stats in by_type.values_mut() {
+            let decided = stats.wins + stats.losses;
+            if decided > 0 {
+                stats.win_rate = (stats.wins as f64 / decided as f64) * 100.0;
+            }
+        }
+
+        Ok(AggregateStats {
+            total_signals,
+            by_type,
+            by_direction: DirectionStats { bullish, bearish },
+        })
+    }
+
+    /// Count total signals (for pagination)
+    pub async fn count_signals(&self, query: &SignalQuery) -> Result<u32> {
+        let mut url = "signals?select=count".to_string();
+
+        if let Some(ref signal_type) = query.signal_type {
+            url.push_str(&format!("&signal_type=eq.{}", signal_type));
+        }
+        if let Some(ref direction) = query.direction {
+            url.push_str(&format!("&direction=eq.{}", direction));
+        }
+        if let Some(ref outcome) = query.outcome {
+            url.push_str(&format!("&outcome=eq.{}", outcome));
+        }
+
+        let response = self
+            .request(reqwest::Method::GET, &url)
+            .header("Accept", "application/json")
+            .header("Prefer", "count=exact")
+            .send()
+            .await?;
+
+        // Get count from content-range header
+        if let Some(range) = response.headers().get("content-range") {
+            if let Ok(range_str) = range.to_str() {
+                // Format: "0-49/1234" - we want the total after /
+                if let Some(total) = range_str.split('/').nth(1) {
+                    if let Ok(count) = total.parse::<u32>() {
+                        return Ok(count);
+                    }
+                }
+            }
+        }
+
+        Ok(0)
+    }
+}
