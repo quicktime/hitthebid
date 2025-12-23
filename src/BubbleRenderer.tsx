@@ -2,6 +2,7 @@ import { useEffect, RefObject } from 'react';
 
 interface Bubble {
   id: string;
+  symbol: string;
   price: number;
   size: number;
   side: 'buy' | 'sell';

@@ -87,12 +87,14 @@ pub async fn run_historical_replay(
     // Notify clients we're connected (in replay mode)
     let _ = state.tx.send(WsMessage::Connected {
         symbols: symbols.clone(),
+        mode: state.mode.clone(),
     });
 
-    // Create processing state with Supabase persistence
+    // Create processing state with Supabase persistence and AppState for stats sync
     let processing_state = Arc::new(RwLock::new(ProcessingState::new(
         state.supabase.clone(),
         state.session_id,
+        Some(state.clone()),
     )));
 
     // Spawn aggregation task (but with speed multiplier)
@@ -119,12 +121,31 @@ pub async fn run_historical_replay(
 
     // Process each trade
     while let Some(trade_msg) = decoder.decode_record::<TradeMsg>().await? {
+        // Check pause state
+        loop {
+            let ctrl = state.replay_control.read().await;
+            if !ctrl.is_paused {
+                break;
+            }
+            drop(ctrl);
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+
         let trade_ts = trade_msg.hd.ts_event / 1_000_000; // nanoseconds to milliseconds
+
+        // Update current timestamp in replay control
+        {
+            let mut ctrl = state.replay_control.write().await;
+            ctrl.current_timestamp = Some(trade_ts);
+        }
+
+        // Get current speed from shared state
+        let current_speed = state.replay_control.read().await.speed;
 
         // Pace the trades according to their original timing (adjusted by speed)
         if let Some(last_ts) = last_trade_ts {
             if trade_ts > last_ts {
-                let delay_ms = (trade_ts - last_ts) / replay_speed as u64;
+                let delay_ms = (trade_ts - last_ts) / current_speed as u64;
                 if delay_ms > 0 && delay_ms < 5000 {
                     // Cap at 5 seconds to skip gaps
                     tokio::time::sleep(Duration::from_millis(delay_ms)).await;

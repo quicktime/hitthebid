@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::supabase::SupabaseClient;
+use crate::supabase::{SupabaseClient, UserConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Trade {
@@ -17,6 +17,7 @@ pub struct Trade {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bubble {
     pub id: String,
+    pub symbol: String,
     pub price: f64,
     pub size: u32, // Dominant side volume (aggression)
     pub side: String, // "buy" or "sell"
@@ -189,6 +190,21 @@ pub struct SignalStats {
     pub win_rate: f64, // Percentage of signals that resulted in expected direction
 }
 
+/// Replay state information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReplayStatus {
+    pub mode: String, // "live", "demo", "replay"
+    #[serde(rename = "isPaused")]
+    pub is_paused: bool,
+    pub speed: u32,
+    #[serde(rename = "replayDate")]
+    pub replay_date: Option<String>,
+    #[serde(rename = "replayProgress")]
+    pub replay_progress: Option<f64>, // 0.0 to 1.0
+    #[serde(rename = "currentTime")]
+    pub current_time: Option<u64>, // Current replay timestamp
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WsMessage {
@@ -201,7 +217,8 @@ pub enum WsMessage {
     StackedImbalance(StackedImbalance),
     Confluence(ConfluenceEvent),
     SessionStats(SessionStats),
-    Connected { symbols: Vec<String> },
+    ReplayStatus(ReplayStatus),
+    Connected { symbols: Vec<String>, mode: String },
     Error { message: String },
 }
 
@@ -210,6 +227,14 @@ pub struct ClientMessage {
     pub action: String,
     pub symbol: Option<String>,
     pub min_size: Option<u32>,
+    pub speed: Option<u32>,
+}
+
+/// Shared replay control state
+pub struct ReplayControl {
+    pub is_paused: bool,
+    pub speed: u32,
+    pub current_timestamp: Option<u64>,
 }
 
 /// Shared application state
@@ -219,4 +244,14 @@ pub struct AppState {
     pub min_size: RwLock<u32>,
     pub session_id: Option<Uuid>,
     pub supabase: Option<SupabaseClient>,
+    /// User configuration (persisted to Supabase)
+    pub config: RwLock<UserConfig>,
+    /// Session stats: (high, low, volume) - updated by ProcessingState
+    pub session_stats: RwLock<(f64, f64, u64)>,
+    /// Current mode: "live", "demo", or "replay"
+    pub mode: String,
+    /// Replay date (for replay mode)
+    pub replay_date: Option<String>,
+    /// Replay control state (pause, speed)
+    pub replay_control: RwLock<ReplayControl>,
 }
