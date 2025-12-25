@@ -315,7 +315,7 @@ async fn main() -> Result<()> {
         .route("/api/signals/export", get(api::export_signals))
         .route("/api/sessions", get(api::get_sessions))
         .route("/api/stats", get(api::get_stats))
-        .nest_service("/", ServeDir::new("dist"))
+        .fallback_service(ServeDir::new("dist"))
         .layer(CorsLayer::new().allow_origin(Any))
         .with_state(state.clone());
 
