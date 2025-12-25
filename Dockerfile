@@ -36,9 +36,6 @@ RUN apt-get update && apt-get install -y ca-certificates libssl3 && rm -rf /var/
 COPY --from=rust-builder /app/target/release/orderflow-bubbles ./
 COPY --from=frontend-builder /app/dist ./dist
 
-# Copy audio files if they exist
-COPY --from=frontend-builder /app/public/*.mp3 ./dist/ 2>/dev/null || true
-
 ENV RUST_LOG=info
 ENV PORT=8080
 
