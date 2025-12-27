@@ -40,3 +40,4 @@ lerna-debug.log*
 
 # Vite cache
 .vite/
+cache/
