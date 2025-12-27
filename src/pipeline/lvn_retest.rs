@@ -58,6 +58,14 @@ pub struct LvnRetestConfig {
     pub min_absorption_bars: usize,
     /// Structure-based stop buffer (points beyond the LVN level)
     pub structure_stop_buffer: f64,
+    /// Trading start hour (ET, 24h format, e.g. 9 for 9:00 AM)
+    pub trade_start_hour: u32,
+    /// Trading start minute (e.g. 30 for 9:30)
+    pub trade_start_minute: u32,
+    /// Trading end hour (ET, 24h format, e.g. 12 for 12:00 PM)
+    pub trade_end_hour: u32,
+    /// Trading end minute
+    pub trade_end_minute: u32,
 }
 
 impl Default for LvnRetestConfig {
@@ -78,6 +86,10 @@ impl Default for LvnRetestConfig {
             same_day_only: false,       // Default: use all LVNs
             min_absorption_bars: 1,     // Default: single bar signal
             structure_stop_buffer: 2.0, // Default: 2 pts beyond level
+            trade_start_hour: 9,        // 9:30 AM ET
+            trade_start_minute: 30,
+            trade_end_hour: 16,         // 4:00 PM ET (full RTH)
+            trade_end_minute: 0,
         }
     }
 }
@@ -234,7 +246,7 @@ impl LvnRetestBacktester {
             }
 
             // Skip non-RTH if configured
-            if self.config.rth_only && !self.is_rth(bar) {
+            if self.config.rth_only && !self.is_trading_hours(bar) {
                 continue;
             }
 
@@ -561,14 +573,17 @@ impl LvnRetestBacktester {
         ))
     }
 
-    /// Check if bar is during RTH (9:30 AM - 4:00 PM ET)
-    fn is_rth(&self, bar: &Bar) -> bool {
+    /// Check if bar is during configured trading hours
+    fn is_trading_hours(&self, bar: &Bar) -> bool {
         let hour = bar.timestamp.hour();
         let minute = bar.timestamp.minute();
         let time_mins = hour * 60 + minute;
 
-        // RTH: 14:30 - 21:00 UTC (9:30 AM - 4:00 PM ET)
-        time_mins >= 14 * 60 + 30 && time_mins < 21 * 60
+        // Convert ET to UTC (add 5 hours)
+        let start_utc = (self.config.trade_start_hour + 5) * 60 + self.config.trade_start_minute;
+        let end_utc = (self.config.trade_end_hour + 5) * 60 + self.config.trade_end_minute;
+
+        time_mins >= start_utc && time_mins < end_utc
     }
 
     /// Calculate final results
