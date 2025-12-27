@@ -14,6 +14,7 @@ import {
   MarketState,
   SetupGrade,
 } from '../journal/types';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Generate unique ID
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -64,6 +65,13 @@ interface JournalState {
   exportData: () => string;
   importData: (json: string) => boolean;
   clearAllData: () => void;
+
+  // Supabase sync
+  isSyncing: boolean;
+  lastSyncAt: string | null;
+  syncError: string | null;
+  syncToSupabase: () => Promise<void>;
+  loadFromSupabase: () => Promise<void>;
 }
 
 // Helper to calculate stats from trades
@@ -155,6 +163,9 @@ export const useJournalStore = create<JournalState>()(
       currentSessionId: null,
       isLoading: false,
       error: null,
+      isSyncing: false,
+      lastSyncAt: null,
+      syncError: null,
 
       // Session actions
       createSession: (form) => {
@@ -537,6 +548,222 @@ export const useJournalStore = create<JournalState>()(
           trades: [],
           currentSessionId: null,
         });
+      },
+
+      // Supabase sync
+      syncToSupabase: async () => {
+        if (!isSupabaseConfigured || !supabase) {
+          console.log('Supabase not configured, skipping sync');
+          return;
+        }
+
+        const { sessions, trades } = get();
+        set({ isSyncing: true, syncError: null });
+
+        try {
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            set({ syncError: 'Not authenticated', isSyncing: false });
+            return;
+          }
+
+          // Upsert sessions
+          for (const session of sessions) {
+            const { error } = await supabase
+              .from('trading_sessions')
+              .upsert({
+                id: session.id,
+                user_id: user.id,
+                date: session.date,
+                pdh: session.pdh,
+                pdl: session.pdl,
+                pdc: session.pdc,
+                onh: session.onh,
+                onl: session.onl,
+                poc: session.poc,
+                vah: session.vah,
+                val: session.val,
+                lvn_levels: session.lvnLevels,
+                premarket_bias: session.premarketBias,
+                market_state_at_open: session.marketStateAtOpen,
+                daily_thesis: session.dailyThesis,
+                daily_review: session.dailyReview,
+                tomorrow_focus: session.tomorrowFocus,
+                lessons_learned: session.lessonsLearned,
+              }, { onConflict: 'id' });
+
+            if (error) throw error;
+          }
+
+          // Upsert trades
+          for (const trade of trades) {
+            const { error } = await supabase
+              .from('trades')
+              .upsert({
+                id: trade.id,
+                session_id: trade.sessionId,
+                user_id: user.id,
+                trade_number: trade.tradeNumber,
+                entry_time: trade.entryTime,
+                exit_time: trade.exitTime,
+                market_state: trade.marketState,
+                location_type: trade.locationType,
+                location_price: trade.locationPrice,
+                aggression_type: trade.aggressionType,
+                prism_confirmation: trade.prismConfirmation,
+                setup_grade: trade.setupGrade,
+                direction: trade.direction,
+                entry_price: trade.entryPrice,
+                stop_price: trade.stopPrice,
+                target_price: trade.targetPrice,
+                position_size: trade.positionSize,
+                planned_rr: trade.plannedRR,
+                exit_price: trade.exitPrice,
+                exit_type: trade.exitType,
+                pnl: trade.pnl,
+                pnl_points: trade.pnlPoints,
+                actual_rr: trade.actualRR,
+                is_open: trade.isOpen,
+                entry_notes: trade.entryNotes,
+                exit_notes: trade.exitNotes,
+                what_worked: trade.whatWorked,
+                what_to_improve: trade.whatToImprove,
+                screenshot: trade.screenshot,
+                signal_source: trade.signalSource,
+                signal_id: trade.signalId,
+              }, { onConflict: 'id' });
+
+            if (error) throw error;
+          }
+
+          set({
+            isSyncing: false,
+            lastSyncAt: new Date().toISOString(),
+            syncError: null
+          });
+          console.log('Synced to Supabase:', sessions.length, 'sessions,', trades.length, 'trades');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Sync failed';
+          set({ isSyncing: false, syncError: message });
+          console.error('Supabase sync error:', error);
+        }
+      },
+
+      loadFromSupabase: async () => {
+        if (!isSupabaseConfigured || !supabase) {
+          console.log('Supabase not configured, skipping load');
+          return;
+        }
+
+        set({ isSyncing: true, syncError: null });
+
+        try {
+          // Get current user
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            set({ syncError: 'Not authenticated', isSyncing: false });
+            return;
+          }
+
+          // Fetch sessions
+          const { data: dbSessions, error: sessionsError } = await supabase
+            .from('trading_sessions')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false });
+
+          if (sessionsError) throw sessionsError;
+
+          // Fetch trades
+          const { data: dbTrades, error: tradesError } = await supabase
+            .from('trades')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('entry_time', { ascending: false });
+
+          if (tradesError) throw tradesError;
+
+          // Transform to local format
+          const sessions: TradingSession[] = (dbSessions || []).map((s) => ({
+            id: s.id,
+            date: s.date,
+            pdh: s.pdh,
+            pdl: s.pdl,
+            pdc: s.pdc,
+            onh: s.onh,
+            onl: s.onl,
+            poc: s.poc,
+            vah: s.vah,
+            val: s.val,
+            lvnLevels: s.lvn_levels || [],
+            premarketBias: s.premarket_bias,
+            marketStateAtOpen: s.market_state_at_open,
+            dailyThesis: s.daily_thesis || '',
+            dailyReview: s.daily_review || '',
+            tomorrowFocus: s.tomorrow_focus || '',
+            lessonsLearned: s.lessons_learned || '',
+            totalTrades: s.total_trades,
+            winners: s.winners,
+            losers: s.losers,
+            scratches: s.scratches,
+            grossProfit: s.gross_profit,
+            grossLoss: s.gross_loss,
+            netPnl: s.net_pnl,
+            equityHigh: s.equity_high,
+            maxDrawdownFromHigh: s.max_drawdown_from_high,
+            createdAt: s.created_at,
+            updatedAt: s.updated_at,
+          }));
+
+          const trades: Trade[] = (dbTrades || []).map((t) => ({
+            id: t.id,
+            sessionId: t.session_id,
+            tradeNumber: t.trade_number,
+            entryTime: t.entry_time,
+            exitTime: t.exit_time,
+            marketState: t.market_state,
+            locationType: t.location_type,
+            locationPrice: t.location_price,
+            aggressionType: t.aggression_type,
+            prismConfirmation: t.prism_confirmation,
+            setupGrade: t.setup_grade,
+            direction: t.direction,
+            entryPrice: t.entry_price,
+            stopPrice: t.stop_price,
+            targetPrice: t.target_price,
+            positionSize: t.position_size,
+            plannedRR: t.planned_rr,
+            exitPrice: t.exit_price,
+            exitType: t.exit_type,
+            pnl: t.pnl,
+            pnlPoints: t.pnl_points,
+            actualRR: t.actual_rr,
+            isOpen: t.is_open,
+            entryNotes: t.entry_notes || '',
+            exitNotes: t.exit_notes || '',
+            whatWorked: t.what_worked || '',
+            whatToImprove: t.what_to_improve || '',
+            screenshot: t.screenshot,
+            signalSource: t.signal_source,
+            signalId: t.signal_id,
+            createdAt: t.created_at,
+            updatedAt: t.updated_at,
+          }));
+
+          set({
+            sessions,
+            trades,
+            isSyncing: false,
+            lastSyncAt: new Date().toISOString(),
+            syncError: null
+          });
+          console.log('Loaded from Supabase:', sessions.length, 'sessions,', trades.length, 'trades');
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Load failed';
+          set({ isSyncing: false, syncError: message });
+          console.error('Supabase load error:', error);
+        }
       },
     }),
     {
