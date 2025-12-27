@@ -10,6 +10,7 @@ mod market_state;
 mod three_element_backtest;
 mod precompute;
 mod lvn_retest;
+mod paper_trading;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -282,6 +283,93 @@ enum Commands {
         /// Structure stop buffer - points beyond LVN level (tighter = better R:R)
         #[arg(long, default_value = "2.0")]
         stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "16")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+    },
+
+    /// Paper trade validation - replay historical data to validate strategy
+    PaperTrade {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache")]
+        cache_dir: PathBuf,
+
+        /// State file to persist paper trading state
+        #[arg(long, default_value = "paper_trading_state.json")]
+        state_file: PathBuf,
+
+        /// Log file for signals and trades
+        #[arg(long, default_value = "paper_trading.log")]
+        log_file: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "2.5")]
+        level_tolerance: f64,
+
+        /// Minimum delta for signal
+        #[arg(long, default_value = "75")]
+        min_delta: i64,
+
+        /// Maximum range for signal
+        #[arg(long, default_value = "2.5")]
+        max_range: f64,
+
+        /// Take profit in points
+        #[arg(long, default_value = "35")]
+        take_profit: f64,
+
+        /// Trailing stop distance
+        #[arg(long, default_value = "12")]
+        trailing_stop: f64,
+
+        /// Structure stop buffer
+        #[arg(long, default_value = "0.5")]
+        stop_buffer: f64,
+
+        /// Max LVN volume ratio
+        #[arg(long, default_value = "0.15")]
+        max_lvn_ratio: f64,
+
+        /// Trading start hour (ET)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Replay speed multiplier (1 = realtime, 0 = as fast as possible)
+        #[arg(long, default_value = "0")]
+        speed: u32,
+
+        /// Show live status updates
+        #[arg(long)]
+        live_status: bool,
     },
 }
 
@@ -353,6 +441,7 @@ async fn main() -> Result<()> {
             min_delta, max_range,
             stop_loss, take_profit, trailing_stop,
             rth_only, max_lvn_ratio, same_day_only, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
         } => {
             run_lvn_retest(
                 cache_dir, date,
@@ -360,6 +449,22 @@ async fn main() -> Result<()> {
                 min_delta, max_range,
                 stop_loss, take_profit, trailing_stop,
                 rth_only, max_lvn_ratio, same_day_only, stop_buffer,
+                start_hour, start_minute, end_hour, end_minute,
+            )?;
+        }
+        Commands::PaperTrade {
+            cache_dir, state_file, log_file, date,
+            level_tolerance, min_delta, max_range,
+            take_profit, trailing_stop, stop_buffer, max_lvn_ratio,
+            start_hour, start_minute, end_hour, end_minute,
+            speed, live_status,
+        } => {
+            run_paper_trade(
+                cache_dir, state_file, log_file, date,
+                level_tolerance, min_delta, max_range,
+                take_profit, trailing_stop, stop_buffer, max_lvn_ratio,
+                start_hour, start_minute, end_hour, end_minute,
+                speed, live_status,
             )?;
         }
     }
@@ -943,6 +1048,10 @@ fn run_lvn_retest(
     max_lvn_ratio: f64,
     same_day_only: bool,
     stop_buffer: f64,
+    start_hour: u32,
+    start_minute: u32,
+    end_hour: u32,
+    end_minute: u32,
 ) -> Result<()> {
     info!("=== LVN RETEST STRATEGY ===");
     info!("Loading from cache: {:?}", cache_dir);
@@ -985,6 +1094,10 @@ fn run_lvn_retest(
         max_lvn_volume_ratio: max_lvn_ratio,
         same_day_only,
         structure_stop_buffer: stop_buffer,
+        trade_start_hour: start_hour,
+        trade_start_minute: start_minute,
+        trade_end_hour: end_hour,
+        trade_end_minute: end_minute,
         ..Default::default()
     };
 
@@ -994,7 +1107,7 @@ fn run_lvn_retest(
     info!("  Absorption: delta >= {}, range <= {} pts", min_delta, max_range);
     info!("  SL: {} pts, TP: {} pts, Trail: {} pts", stop_loss, take_profit, trailing_stop);
     info!("  Stop buffer: {} pts beyond LVN", stop_buffer);
-    info!("  RTH only: {}", rth_only);
+    info!("  Trading hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
     info!("  Max LVN ratio: {} (quality filter)", max_lvn_ratio);
     info!("  Same-day only: {}", same_day_only);
 
@@ -1006,5 +1119,160 @@ fn run_lvn_retest(
     lvn_retest::print_results(&results);
 
     info!("LVN Retest backtest complete!");
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_paper_trade(
+    cache_dir: PathBuf,
+    state_file: PathBuf,
+    log_file: PathBuf,
+    date: Option<String>,
+    level_tolerance: f64,
+    min_delta: i64,
+    max_range: f64,
+    take_profit: f64,
+    trailing_stop: f64,
+    stop_buffer: f64,
+    max_lvn_ratio: f64,
+    start_hour: u32,
+    start_minute: u32,
+    end_hour: u32,
+    end_minute: u32,
+    speed: u32,
+    live_status: bool,
+) -> Result<()> {
+    info!("=== PAPER TRADING VALIDATION ===");
+    info!("Loading from cache: {:?}", cache_dir);
+
+    let start = std::time::Instant::now();
+
+    // Load cached data
+    let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+    if days.is_empty() {
+        anyhow::bail!("No cached data found. Run 'precompute' first.");
+    }
+
+    info!(
+        "Loaded in {:.2}s: {} days of data",
+        start.elapsed().as_secs_f64(),
+        days.len()
+    );
+
+    // Configure paper trading
+    let config = paper_trading::PaperConfig {
+        level_tolerance,
+        retest_distance: 8.0,
+        min_delta,
+        max_range,
+        take_profit,
+        trailing_stop,
+        stop_buffer,
+        max_lvn_ratio,
+        start_hour,
+        start_minute,
+        end_hour,
+        end_minute,
+    };
+
+    info!("Paper Trading Config:");
+    info!("  Trading hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
+    info!("  Level tolerance: {} pts", level_tolerance);
+    info!("  Signal: delta >= {}, range <= {} pts", min_delta, max_range);
+    info!("  TP: {} pts, Trail: {} pts, Stop buffer: {} pts", take_profit, trailing_stop, stop_buffer);
+    info!("  Max LVN ratio: {}", max_lvn_ratio);
+    info!("  Speed: {}x (0 = max speed)", speed);
+
+    // Initialize paper trading state
+    let mut state = paper_trading::PaperTradingState::new(config);
+
+    // Process each day
+    let mut total_bars = 0;
+    let mut total_signals = 0;
+
+    for day in days {
+        let day_date = &day.date;
+        info!("Processing day: {}", day_date);
+
+        // Add LVN levels for this day
+        state.add_lvn_levels(&day.lvn_levels);
+        info!("  Added {} LVN levels", day.lvn_levels.len());
+
+        // Process bars
+        for bar in &day.bars_1s {
+            total_bars += 1;
+
+            if let Some(signal) = state.process_bar(bar) {
+                total_signals += 1;
+
+                // Print alert
+                paper_trading::print_signal_alert(&signal);
+
+                // Log to file
+                if let Err(e) = paper_trading::log_signal(&signal, &log_file) {
+                    info!("Failed to log signal: {}", e);
+                }
+            }
+
+            // Log closed trades
+            let trades = state.get_closed_trades();
+            if let Some(last_trade) = trades.last() {
+                if last_trade.exit_time.is_some() {
+                    if let Err(e) = paper_trading::log_trade(last_trade, &log_file) {
+                        info!("Failed to log trade: {}", e);
+                    }
+                }
+            }
+
+            // Show live status updates periodically
+            if live_status && total_bars % 3600 == 0 {
+                state.print_status();
+            }
+
+            // Speed control
+            if speed > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(1000 / speed as u64));
+            }
+        }
+
+        // Clear levels at end of day (for same-session freshness)
+        state.clear_levels();
+    }
+
+    // Final status
+    state.print_status();
+
+    // Print summary
+    let stats = state.calculate_stats();
+    println!("\n═══════════════════════════════════════════════════════════");
+    println!("              PAPER TRADING SUMMARY                         ");
+    println!("═══════════════════════════════════════════════════════════\n");
+
+    println!("Bars Processed:    {}", total_bars);
+    println!("Signals Generated: {}", total_signals);
+    println!("Trades Executed:   {}", stats.total_trades);
+    println!();
+    println!("Wins:              {} ({:.1}%)", stats.wins, stats.win_rate);
+    println!("Losses:            {}", stats.losses);
+    println!("Total P&L:         {:+.2} pts (${:.2})", stats.total_pnl, stats.total_pnl * 20.0);
+    println!();
+    println!("Avg Win:           {:+.2} pts", stats.avg_win);
+    println!("Avg Loss:          {:+.2} pts", stats.avg_loss);
+    println!("R:R Ratio:         {:.2}:1", stats.rr_ratio);
+    println!("Profit Factor:     {:.2}", stats.profit_factor);
+
+    println!("\n═══════════════════════════════════════════════════════════\n");
+
+    // Save state
+    if let Err(e) = state.save(&state_file) {
+        info!("Failed to save state: {}", e);
+    } else {
+        info!("State saved to {:?}", state_file);
+    }
+
+    info!("Signals logged to {:?}", log_file);
+    info!("Paper trading validation complete!");
+
     Ok(())
 }
