@@ -1,4 +1,4 @@
-use crate::impulse::ImpulseLeg;
+use crate::impulse::{ImpulseDirection, ImpulseLeg};
 use crate::trades::{Side, Trade};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -7,8 +7,8 @@ use std::collections::HashMap;
 /// Price bucket size for volume profile (finer granularity for LVN detection)
 const LVN_BUCKET_SIZE: f64 = 0.5; // 2 ticks = 0.5 points for NQ
 
-/// Threshold for LVN: volume < 30% of average volume at price
-const LVN_THRESHOLD_RATIO: f64 = 0.30;
+/// Threshold for LVN: volume < 15% of average volume at price (stricter = fewer, stronger LVNs)
+const LVN_THRESHOLD_RATIO: f64 = 0.15;
 
 /// Low Volume Node extracted from impulse leg volume profile
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,6 +19,7 @@ pub struct LvnLevel {
     pub volume_ratio: f64, // Actual/Average (< 0.3 qualifies)
     pub impulse_start_time: DateTime<Utc>,
     pub impulse_end_time: DateTime<Utc>,
+    pub impulse_direction: ImpulseDirection, // Direction of impulse that created this LVN
     pub date: NaiveDate,
     pub symbol: String,
 }
@@ -66,6 +67,7 @@ pub fn extract_lvns(trades: &[Trade], impulse_legs: &[ImpulseLeg]) -> Vec<LvnLev
                     volume_ratio,
                     impulse_start_time: leg.start_time,
                     impulse_end_time: leg.end_time,
+                    impulse_direction: leg.direction,
                     date: leg.date,
                     symbol: leg.symbol.clone(),
                 });

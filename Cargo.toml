@@ -48,3 +48,4 @@ zstd = "0.13.3"
 csv = "1.4.0"
 parquet = { version = "57.1", features = ["async"] }
 arrow = { version = "57.1", features = ["chrono-tz"] }
+rayon = "1.10"

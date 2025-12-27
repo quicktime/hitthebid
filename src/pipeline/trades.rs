@@ -86,6 +86,12 @@ pub fn parse_zst_trades(path: &Path) -> Result<Vec<Trade>> {
             continue;
         }
 
+        // Only process front-month NQ contract (NQZ5 for Dec 2025)
+        // Skip spreads (contain '-') and back-month contracts
+        if row.symbol.contains('-') || !row.symbol.starts_with("NQZ") {
+            continue;
+        }
+
         let side = match row.side.as_str() {
             "B" => Side::Buy,
             "A" => Side::Sell,

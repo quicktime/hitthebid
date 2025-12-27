@@ -2,6 +2,7 @@ use crate::bars::Bar;
 use crate::impulse::ImpulseLeg;
 use crate::levels::DailyLevels;
 use crate::lvn::LvnLevel;
+use crate::replay::CapturedSignal;
 use anyhow::{Context, Result};
 use arrow::array::{
     ArrayRef, Float64Array, Int64Array, StringArray, TimestampMicrosecondArray, UInt64Array,
@@ -9,13 +10,15 @@ use arrow::array::{
 };
 use arrow::datatypes::{DataType, Field, Schema, TimeUnit};
 use arrow::record_batch::RecordBatch;
+use chrono::{DateTime, NaiveDate, Utc};
 use parquet::arrow::ArrowWriter;
 use parquet::file::properties::WriterProperties;
 use reqwest::Client;
-use serde_json::json;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
+use tracing::info;
 
 /// Supabase client for data upload
 pub struct SupabaseClient {
@@ -67,6 +70,10 @@ impl SupabaseClient {
     }
 
     pub async fn upload_bars(&self, bars: &[Bar]) -> Result<()> {
+        // Clear existing bars first
+        info!("Clearing existing bars...");
+        self.truncate_table("replay_bars_1s").await?;
+
         #[derive(serde::Serialize)]
         struct BarRow {
             timestamp: String,
@@ -96,6 +103,7 @@ impl SupabaseClient {
             symbol: b.symbol.clone(),
         }).collect();
 
+        info!("Uploading {} bars...", rows.len());
         self.insert_batch("replay_bars_1s", &rows).await
     }
 
@@ -204,6 +212,222 @@ impl SupabaseClient {
         }).collect();
 
         self.insert_batch("lvn_levels", &rows).await
+    }
+
+    /// Truncate a table (delete all rows)
+    async fn truncate_table(&self, table: &str) -> Result<()> {
+        // Delete all rows by using a condition that matches everything
+        let response = self.client
+            .delete(format!("{}/rest/v1/{}", self.url, table))
+            .header("apikey", &self.key)
+            .header("Authorization", format!("Bearer {}", self.key))
+            .header("Prefer", "return=minimal")
+            // Match all rows where id is greater than 0 (or timestamp exists)
+            .query(&[("id", "gt.0")])
+            .send()
+            .await
+            .context("Failed to truncate table")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            // 404 or empty is fine - table might be empty
+            if status.as_u16() != 404 {
+                info!("Truncate {} response: {} - {}", table, status, text);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn upload_signals(&self, signals: &[CapturedSignal]) -> Result<()> {
+        // Clear existing signals first
+        info!("Clearing existing signals...");
+        self.truncate_table("signals").await?;
+
+        #[derive(Serialize)]
+        struct SignalRow {
+            timestamp: i64,
+            signal_type: String,
+            direction: String,
+            price: f64,
+            strength: Option<String>,
+            extra_data: Option<String>,
+        }
+
+        let rows: Vec<_> = signals.iter().map(|s| SignalRow {
+            timestamp: s.timestamp as i64,
+            signal_type: s.signal_type.clone(),
+            direction: s.direction.clone(),
+            price: s.price,
+            strength: s.strength.clone(),
+            extra_data: s.extra_data.clone(),
+        }).collect();
+
+        info!("Uploading {} signals...", rows.len());
+        self.insert_batch("signals", &rows).await
+    }
+
+    // ========== FETCH METHODS ==========
+
+    async fn fetch_all<T: for<'de> Deserialize<'de>>(&self, table: &str, order_by: &str) -> Result<Vec<T>> {
+        let mut all_rows = Vec::new();
+        let limit = 1000;
+        let mut offset = 0;
+
+        loop {
+            let url = format!(
+                "{}/rest/v1/{}?order={}&limit={}&offset={}",
+                self.url, table, order_by, limit, offset
+            );
+
+            let response = self.client
+                .get(&url)
+                .header("apikey", &self.key)
+                .header("Authorization", format!("Bearer {}", self.key))
+                .send()
+                .await
+                .context("Failed to fetch from Supabase")?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let text = response.text().await.unwrap_or_default();
+                anyhow::bail!("Supabase fetch failed ({}): {}", status, text);
+            }
+
+            let rows: Vec<T> = response.json().await
+                .context("Failed to parse Supabase response")?;
+
+            let count = rows.len();
+            all_rows.extend(rows);
+
+            if count < limit {
+                break;
+            }
+            offset += limit;
+            info!("  Fetched {} rows so far...", all_rows.len());
+        }
+
+        Ok(all_rows)
+    }
+
+    pub async fn fetch_bars(&self) -> Result<Vec<Bar>> {
+        #[derive(Deserialize)]
+        struct BarRow {
+            timestamp: String,
+            open: f64,
+            high: f64,
+            low: f64,
+            close: f64,
+            volume: i64,
+            buy_volume: i64,
+            sell_volume: i64,
+            delta: i64,
+            trade_count: i64,
+            symbol: String,
+        }
+
+        info!("Fetching bars from Supabase...");
+        let rows: Vec<BarRow> = self.fetch_all("replay_bars_1s", "timestamp").await?;
+        info!("Fetched {} bars", rows.len());
+
+        let bars = rows.into_iter().filter_map(|r| {
+            let timestamp = DateTime::parse_from_rfc3339(&r.timestamp)
+                .ok()?
+                .with_timezone(&Utc);
+            Some(Bar {
+                timestamp,
+                open: r.open,
+                high: r.high,
+                low: r.low,
+                close: r.close,
+                volume: r.volume as u64,
+                buy_volume: r.buy_volume as u64,
+                sell_volume: r.sell_volume as u64,
+                delta: r.delta,
+                trade_count: r.trade_count as u64,
+                symbol: r.symbol,
+            })
+        }).collect();
+
+        Ok(bars)
+    }
+
+    pub async fn fetch_daily_levels(&self) -> Result<Vec<DailyLevels>> {
+        #[derive(Deserialize)]
+        struct LevelRow {
+            date: String,
+            symbol: String,
+            pdh: f64,
+            pdl: f64,
+            pdc: f64,
+            #[serde(default)]
+            onh: f64,
+            #[serde(default)]
+            onl: f64,
+            poc: f64,
+            vah: f64,
+            val: f64,
+            session_high: f64,
+            session_low: f64,
+            session_open: f64,
+            session_close: f64,
+            total_volume: i64,
+        }
+
+        info!("Fetching daily levels from Supabase...");
+        let rows: Vec<LevelRow> = self.fetch_all("daily_levels", "date").await?;
+        info!("Fetched {} daily levels", rows.len());
+
+        let levels = rows.into_iter().filter_map(|r| {
+            let date = NaiveDate::parse_from_str(&r.date, "%Y-%m-%d").ok()?;
+            Some(DailyLevels {
+                date,
+                symbol: r.symbol,
+                pdh: r.pdh,
+                pdl: r.pdl,
+                pdc: r.pdc,
+                onh: r.onh,
+                onl: r.onl,
+                poc: r.poc,
+                vah: r.vah,
+                val: r.val,
+                session_high: r.session_high,
+                session_low: r.session_low,
+                session_open: r.session_open,
+                session_close: r.session_close,
+                total_volume: r.total_volume as u64,
+            })
+        }).collect();
+
+        Ok(levels)
+    }
+
+    pub async fn fetch_signals(&self) -> Result<Vec<CapturedSignal>> {
+        #[derive(Deserialize)]
+        struct SignalRow {
+            timestamp: i64,
+            signal_type: String,
+            direction: String,
+            price: f64,
+            strength: Option<String>,
+            extra_data: Option<String>,
+        }
+
+        info!("Fetching signals from Supabase...");
+        let rows: Vec<SignalRow> = self.fetch_all("signals", "timestamp").await?;
+        info!("Fetched {} signals", rows.len());
+
+        let signals = rows.into_iter().map(|r| CapturedSignal {
+            timestamp: r.timestamp as u64,
+            signal_type: r.signal_type,
+            direction: r.direction,
+            price: r.price,
+            strength: r.strength,
+            extra_data: r.extra_data,
+        }).collect();
+
+        Ok(signals)
     }
 }
 

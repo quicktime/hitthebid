@@ -14,6 +14,10 @@ pub struct DailyLevels {
     pub pdl: f64, // Prior Day Low
     pub pdc: f64, // Prior Day Close
 
+    // Overnight levels (pre-RTH session)
+    pub onh: f64, // Overnight High
+    pub onl: f64, // Overnight Low
+
     // Volume Profile levels (computed from current day)
     pub poc: f64, // Point of Control - price with highest volume
     pub vah: f64, // Value Area High - upper bound of 70% volume
@@ -25,6 +29,165 @@ pub struct DailyLevels {
     pub session_open: f64,
     pub session_close: f64,
     pub total_volume: u64,
+}
+
+/// Type of key level for trading signals
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LevelType {
+    POC,  // Point of Control
+    VAH,  // Value Area High
+    VAL,  // Value Area Low
+    PDH,  // Prior Day High
+    PDL,  // Prior Day Low
+    ONH,  // Overnight High
+    ONL,  // Overnight Low
+    LVN,  // Low Volume Node
+}
+
+impl std::fmt::Display for LevelType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LevelType::POC => write!(f, "POC"),
+            LevelType::VAH => write!(f, "VAH"),
+            LevelType::VAL => write!(f, "VAL"),
+            LevelType::PDH => write!(f, "PDH"),
+            LevelType::PDL => write!(f, "PDL"),
+            LevelType::ONH => write!(f, "ONH"),
+            LevelType::ONL => write!(f, "ONL"),
+            LevelType::LVN => write!(f, "LVN"),
+        }
+    }
+}
+
+/// A key level with its type and metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyLevel {
+    pub price: f64,
+    pub level_type: LevelType,
+    pub date: NaiveDate,
+    /// Strength indicator (0.0-1.0, higher = stronger)
+    /// For LVNs: 1.0 - volume_ratio (lower volume = higher strength)
+    /// For other levels: 1.0 (always strong)
+    pub strength: f64,
+}
+
+/// Index of all key levels for fast proximity lookup
+pub struct LevelIndex {
+    /// All levels sorted by price
+    levels: Vec<KeyLevel>,
+    /// Tolerance in points for "at level" detection
+    tolerance: f64,
+}
+
+impl LevelIndex {
+    /// Create a new LevelIndex from daily levels and LVNs
+    pub fn new(
+        daily_levels: &[DailyLevels],
+        lvn_levels: &[crate::lvn::LvnLevel],
+        tolerance: f64,
+    ) -> Self {
+        let mut levels = Vec::new();
+
+        // Add daily levels
+        for dl in daily_levels {
+            // POC, VAH, VAL
+            levels.push(KeyLevel {
+                price: dl.poc,
+                level_type: LevelType::POC,
+                date: dl.date,
+                strength: 1.0,
+            });
+            levels.push(KeyLevel {
+                price: dl.vah,
+                level_type: LevelType::VAH,
+                date: dl.date,
+                strength: 1.0,
+            });
+            levels.push(KeyLevel {
+                price: dl.val,
+                level_type: LevelType::VAL,
+                date: dl.date,
+                strength: 1.0,
+            });
+            // PDH, PDL
+            levels.push(KeyLevel {
+                price: dl.pdh,
+                level_type: LevelType::PDH,
+                date: dl.date,
+                strength: 1.0,
+            });
+            levels.push(KeyLevel {
+                price: dl.pdl,
+                level_type: LevelType::PDL,
+                date: dl.date,
+                strength: 1.0,
+            });
+            // ONH, ONL
+            levels.push(KeyLevel {
+                price: dl.onh,
+                level_type: LevelType::ONH,
+                date: dl.date,
+                strength: 1.0,
+            });
+            levels.push(KeyLevel {
+                price: dl.onl,
+                level_type: LevelType::ONL,
+                date: dl.date,
+                strength: 1.0,
+            });
+        }
+
+        // Add LVN levels (strength = inverse of volume ratio)
+        for lvn in lvn_levels {
+            let strength = 1.0 - lvn.volume_ratio.min(1.0);
+            levels.push(KeyLevel {
+                price: lvn.price,
+                level_type: LevelType::LVN,
+                date: lvn.date,
+                strength,
+            });
+        }
+
+        // Sort by price for efficient searching
+        levels.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap_or(std::cmp::Ordering::Equal));
+
+        Self { levels, tolerance }
+    }
+
+    /// Find all levels within tolerance of a price on a specific date
+    pub fn levels_near(&self, price: f64, date: NaiveDate) -> Vec<&KeyLevel> {
+        self.levels
+            .iter()
+            .filter(|l| l.date == date && (l.price - price).abs() <= self.tolerance)
+            .collect()
+    }
+
+    /// Check if price is at any key level on the given date
+    pub fn is_at_level(&self, price: f64, date: NaiveDate) -> bool {
+        !self.levels_near(price, date).is_empty()
+    }
+
+    /// Get the strongest level near price (for trade context)
+    pub fn strongest_level_near(&self, price: f64, date: NaiveDate) -> Option<&KeyLevel> {
+        self.levels_near(price, date)
+            .into_iter()
+            .max_by(|a, b| a.strength.partial_cmp(&b.strength).unwrap_or(std::cmp::Ordering::Equal))
+    }
+
+    /// Get all levels for a specific date
+    pub fn levels_for_date(&self, date: NaiveDate) -> Vec<&KeyLevel> {
+        self.levels.iter().filter(|l| l.date == date).collect()
+    }
+
+    /// Total number of levels in the index
+    pub fn len(&self) -> usize {
+        self.levels.len()
+    }
+
+    /// Check if index is empty
+    pub fn is_empty(&self) -> bool {
+        self.levels.is_empty()
+    }
 }
 
 /// Trading session boundaries (CME NQ futures)
@@ -93,6 +256,8 @@ pub fn compute_daily_levels(bars: &[Bar]) -> Vec<DailyLevels> {
             pdh,
             pdl,
             pdc,
+            onh: 0.0, // TODO: Compute from overnight session
+            onl: 0.0, // TODO: Compute from overnight session
             poc,
             vah,
             val,
