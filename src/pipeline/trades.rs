@@ -86,9 +86,21 @@ pub fn parse_zst_trades(path: &Path) -> Result<Vec<Trade>> {
             continue;
         }
 
-        // Only process front-month NQ contract (NQZ5 for Dec 2025)
-        // Skip spreads (contain '-') and back-month contracts
-        if row.symbol.contains('-') || !row.symbol.starts_with("NQZ") {
+        // Only process front-month NQ contracts
+        // Skip spreads (contain '-') and non-NQ symbols
+        // Accept all quarterly contracts: NQH5, NQM5, NQU5, NQZ5
+        if row.symbol.contains('-') {
+            continue;
+        }
+        if !row.symbol.starts_with("NQ") {
+            continue;
+        }
+        // Ensure it's a valid quarterly contract (letter + digit)
+        // Valid contracts: NQH5, NQM5, NQU5, NQZ5 (2025)
+        let is_valid_nq = row.symbol.len() == 4
+            && matches!(row.symbol.chars().nth(2), Some('H' | 'M' | 'U' | 'Z'))
+            && row.symbol.chars().nth(3).map_or(false, |c| c.is_ascii_digit());
+        if !is_valid_nq {
             continue;
         }
 

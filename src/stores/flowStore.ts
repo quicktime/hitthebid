@@ -333,8 +333,11 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
   handleMessage: (message: WsMessage) => {
     const state = get();
 
+
     switch (message.type) {
       case 'Bubble': {
+        const MAX_BUBBLES = 80; // Limit for performance
+
         const bubble: Bubble = {
           id: message.id,
           symbol: message.symbol,
@@ -347,7 +350,12 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
           isSignificantImbalance: message.isSignificantImbalance,
         };
 
-        const newBubbles = [...state.bubbles, bubble];
+        // Add new bubble and keep only the most recent MAX_BUBBLES
+        let newBubbles = [...state.bubbles, bubble];
+        if (newBubbles.length > MAX_BUBBLES) {
+          newBubbles = newBubbles.slice(-MAX_BUBBLES);
+        }
+
         const newPriceRange = state.priceRange
           ? {
               min: Math.min(state.priceRange.min, bubble.price - (state.priceRange.max - state.priceRange.min) * 0.1),
@@ -394,8 +402,14 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
           ];
         }
 
+        const MAX_CVD_POINTS = 200; // Limit for performance
+        let newCvdHistory = [...state.cvdHistory, cvdPoint];
+        if (newCvdHistory.length > MAX_CVD_POINTS) {
+          newCvdHistory = newCvdHistory.slice(-MAX_CVD_POINTS);
+        }
+
         set({
-          cvdHistory: [...state.cvdHistory, cvdPoint],
+          cvdHistory: newCvdHistory,
           currentCVD: adjustedCvd,
           cvdRange: {
             min: Math.min(state.cvdRange.min, adjustedCvd),
@@ -491,9 +505,8 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
     }
   },
 
-  getFilteredBubbles: (selectedSymbol: string) => {
-    const bubbles = get().bubbles;
-    if (selectedSymbol === 'all') return bubbles;
-    return bubbles.filter((b) => b.symbol === selectedSymbol);
+  getFilteredBubbles: (_selectedSymbol: string) => {
+    // Always return all bubbles since we only trade NQ now
+    return get().bubbles;
   },
 }));

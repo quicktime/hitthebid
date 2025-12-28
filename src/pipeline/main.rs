@@ -15,8 +15,8 @@ mod paper_trading;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use tracing::{info, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing::info;
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Parser, Debug)]
 #[command(name = "pipeline")]
@@ -379,10 +379,18 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(if args.verbose { Level::DEBUG } else { Level::INFO })
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+    // Set up logging with filter to reduce noise from orderflow_bubbles processing
+    // The processing module logs every bubble creation at INFO level which is too verbose
+    let filter = if args.verbose {
+        EnvFilter::new("debug")
+    } else {
+        // Only show warnings from orderflow_bubbles, INFO from pipeline
+        EnvFilter::new("pipeline=info,orderflow_bubbles=warn")
+    };
+
+    fmt()
+        .with_env_filter(filter)
+        .init();
 
     match args.command {
         Commands::Process { data_dir, output_dir, date, no_upload } => {

@@ -20,8 +20,8 @@ export function JournalLayout() {
 
   return (
     <div className="app">
-      {/* Header - matches Flow exactly */}
-      <header className="header">
+      {/* Header */}
+      <header className="header" style={{ padding: '15px 20px' }}>
         <div className="header-left">
           <h1 className="logo">
             <span className="logo-icon">◉</span>

@@ -25,7 +25,7 @@ export function JournalDashboard() {
     .slice(0, 5);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -38,21 +38,21 @@ export function JournalDashboard() {
           {!todaySession && (
             <button
               onClick={() => navigate('/journal/session')}
-              className="btn-primary"
+              className="btn btn-primary"
             >
               + Start Today's Session
             </button>
           )}
           {todaySession && (
-            <button onClick={() => navigate('/journal/trade')} className="btn-success">
+            <button onClick={() => navigate('/journal/trade')} className="btn btn-success">
               + New Trade
             </button>
           )}
         </div>
       </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {/* Quick Stats Row - First 4 cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" style={{ marginBottom: '24px' }}>
         <StatCard
           label="Total Trades"
           value={stats.totalTrades.toString()}
@@ -73,6 +73,10 @@ export function JournalDashboard() {
           value={`${stats.netPnl >= 0 ? '+' : ''}$${stats.netPnl.toFixed(0)}`}
           color={stats.netPnl >= 0 ? 'green' : 'red'}
         />
+      </div>
+
+      {/* Second Row - Avg Winner, Avg Loser, Ready to Fund */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" style={{ marginBottom: '24px' }}>
         <StatCard
           label="Avg Winner"
           value={`$${stats.avgWinner.toFixed(0)}`}
@@ -83,6 +87,60 @@ export function JournalDashboard() {
           value={`$${stats.avgLoser.toFixed(0)}`}
           color="red"
         />
+        {/* Ready to Fund Checklist - spans 2 columns */}
+        <div className="col-span-2 card">
+          <h2 className="text-lg font-semibold text-white mb-4">Ready to Fund?</h2>
+          <div className="grid grid-cols-5 gap-4">
+            <ChecklistItem
+              label="50+ Trades"
+              current={checklist.minTrades.current}
+              required={checklist.minTrades.required}
+              passed={checklist.minTrades.passed}
+              format="number"
+            />
+            <ChecklistItem
+              label="45%+ WR"
+              current={checklist.winRate.current}
+              required={checklist.winRate.required}
+              passed={checklist.winRate.passed}
+              format="percent"
+            />
+            <ChecklistItem
+              label="1.3+ PF"
+              current={checklist.profitFactor.current}
+              required={checklist.profitFactor.required}
+              passed={checklist.profitFactor.passed}
+              format="decimal"
+            />
+            <ChecklistItem
+              label="Max Loss < $75"
+              current={Math.abs(checklist.maxSingleLoss.current)}
+              required={Math.abs(checklist.maxSingleLoss.required)}
+              passed={checklist.maxSingleLoss.passed}
+              format="currency"
+              invert
+            />
+            <ChecklistItem
+              label="Daily < $150"
+              current={Math.abs(checklist.maxDailyLoss.current)}
+              required={Math.abs(checklist.maxDailyLoss.required)}
+              passed={checklist.maxDailyLoss.passed}
+              format="currency"
+              invert
+            />
+          </div>
+          <div
+            className={`mt-5 py-2 rounded text-center text-sm font-medium ${
+              checklist.allPassed
+                ? 'bg-green-500/20 text-green-500'
+                : 'bg-white/10 text-white/50'
+            }`}
+          >
+            {checklist.allPassed
+              ? '✓ Ready for Prop Firm Evaluation!'
+              : 'Keep trading to meet all criteria'}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,7 +217,7 @@ export function JournalDashboard() {
                 <p className="text-white/50 mb-4">No session started for today</p>
                 <button
                   onClick={() => navigate('/journal/session')}
-                  className="btn-primary"
+                  className="btn btn-primary"
                 >
                   Start Today's Session
                 </button>
@@ -286,61 +344,6 @@ export function JournalDashboard() {
 
         {/* Right sidebar */}
         <div className="space-y-6">
-          {/* Ready to Fund Checklist */}
-          <div className="card">
-            <h2 className="text-lg font-semibold text-white mb-4">Ready to Fund?</h2>
-            <div className="space-y-3">
-              <ChecklistItem
-                label="50+ Trades"
-                current={checklist.minTrades.current}
-                required={checklist.minTrades.required}
-                passed={checklist.minTrades.passed}
-                format="number"
-              />
-              <ChecklistItem
-                label="45%+ Win Rate"
-                current={checklist.winRate.current}
-                required={checklist.winRate.required}
-                passed={checklist.winRate.passed}
-                format="percent"
-              />
-              <ChecklistItem
-                label="1.3+ Profit Factor"
-                current={checklist.profitFactor.current}
-                required={checklist.profitFactor.required}
-                passed={checklist.profitFactor.passed}
-                format="decimal"
-              />
-              <ChecklistItem
-                label="Max Loss < $75"
-                current={Math.abs(checklist.maxSingleLoss.current)}
-                required={Math.abs(checklist.maxSingleLoss.required)}
-                passed={checklist.maxSingleLoss.passed}
-                format="currency"
-                invert
-              />
-              <ChecklistItem
-                label="Daily Loss < $150"
-                current={Math.abs(checklist.maxDailyLoss.current)}
-                required={Math.abs(checklist.maxDailyLoss.required)}
-                passed={checklist.maxDailyLoss.passed}
-                format="currency"
-                invert
-              />
-            </div>
-            <div
-              className={`mt-4 p-3 rounded-lg text-center font-medium ${
-                checklist.allPassed
-                  ? 'bg-green-500/20 text-green-500'
-                  : 'bg-white/10 text-white/50'
-              }`}
-            >
-              {checklist.allPassed
-                ? '✓ Ready for Prop Firm Evaluation!'
-                : 'Keep trading to meet all criteria'}
-            </div>
-          </div>
-
           {/* Recent Sessions */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
@@ -456,14 +459,12 @@ function ChecklistItem({
     : Math.min(100, (current / required) * 100);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm text-white/70">{label}</span>
-        <span className={`text-sm font-mono ${passed ? 'text-green-500' : 'text-white/50'}`}>
-          {passed ? '✓' : formatValue(current)}
-        </span>
+    <div className="text-center">
+      <div className="text-xs text-white/50 mb-1 truncate">{label}</div>
+      <div className={`text-sm font-mono font-bold ${passed ? 'text-green-500' : 'text-white/70'}`}>
+        {passed ? '✓' : formatValue(current)}
       </div>
-      <div className="h-2 bg-bg-tertiary rounded-full overflow-hidden">
+      <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden mt-1">
         <div
           className={`h-full rounded-full transition-all ${
             passed ? 'bg-green-500' : 'bg-blue-500'

@@ -1,4 +1,4 @@
-import { useEffect, RefObject } from 'react';
+import { useEffect, useRef, RefObject } from 'react';
 
 interface Bubble {
   id: string;
@@ -113,6 +113,9 @@ export function BubbleRenderer({
   absorptionZones = [],
   stackedImbalances = []
 }: BubbleRendererProps) {
+  // Track canvas size to avoid unnecessary resizes
+  const lastSizeRef = useRef({ width: 0, height: 0 });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -120,12 +123,16 @@ export function BubbleRenderer({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set up high DPI canvas
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+
+    // Only resize canvas if dimensions actually changed
+    if (lastSizeRef.current.width !== rect.width || lastSizeRef.current.height !== rect.height) {
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      lastSizeRef.current = { width: rect.width, height: rect.height };
+    }
 
     // Clear canvas
     ctx.fillStyle = COLORS.background;
@@ -192,10 +199,16 @@ export function BubbleRenderer({
       }
     });
 
-    // Draw bubbles
+    // Draw bubbles (offset by volume profile width, constrain to main chart area)
+    const volumeProfileWidth = 120;
+    const bubbleAreaWidth = rect.width - volumeProfileWidth;
+
     bubbles.forEach(bubble => {
-      const x = bubble.x * rect.width;
-      const y = rect.height - ((bubble.price - priceMin) / priceSpan) * rect.height;
+      const x = volumeProfileWidth + (bubble.x * bubbleAreaWidth);
+      const y = ((1 - (bubble.price - priceMin) / priceSpan) * mainChartHeight);
+
+      // Skip bubbles that would be in the volume profile area
+      if (x < volumeProfileWidth) return;
 
       // Scale radius linearly based on order size (aggression)
       const radius = Math.min(
@@ -580,11 +593,6 @@ function drawVolumeProfileEnhanced(
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // POC label
-      ctx.fillStyle = 'rgba(0, 200, 255, 1)';
-      ctx.font = 'bold 8px "JetBrains Mono", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('POC', profileX + profileWidth + 5, y + 3);
     }
 
   });
@@ -634,13 +642,6 @@ function drawVolumeProfileEnhanced(
   ctx.textAlign = 'center';
   ctx.fillText('VOLUME PROFILE', profileX + profileWidth / 2, 15);
 
-  // Draw legend
-  const legendY = height - 60;
-  ctx.font = '8px "JetBrains Mono", monospace';
-  ctx.textAlign = 'left';
-
-  ctx.fillStyle = 'rgba(255, 215, 0, 1)';
-  ctx.fillText('POC = High Vol', profileX + 5, legendY);
 }
 
 // Draw absorption zones on the chart - ONLY DEFENDED zones

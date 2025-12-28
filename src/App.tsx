@@ -182,10 +182,8 @@ function App() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Filter bubbles by selected symbol
-  const filteredBubbles = useMemo(() => {
-    return getFilteredBubbles(selectedSymbol);
-  }, [getFilteredBubbles, selectedSymbol]);
+  // Use all bubbles directly (NQ only now, no filtering needed)
+  const filteredBubbles = bubbles;
 
   // Track previous signal counts to detect new signals
   const prevZeroCrossCount = useRef(0);
@@ -559,25 +557,6 @@ function App() {
               Journal
             </Link>
           </div>
-          {isConnected && connectedSymbols.length > 0 && (
-            <div className="symbol-selector">
-              <button
-                className={`symbol-btn ${selectedSymbol === 'all' ? 'active' : ''}`}
-                onClick={() => setSelectedSymbol('all')}
-              >
-                ALL
-              </button>
-              {connectedSymbols.map((symbol) => (
-                <button
-                  key={symbol}
-                  className={`symbol-btn ${selectedSymbol === symbol ? 'active' : ''}`}
-                  onClick={() => setSelectedSymbol(symbol)}
-                >
-                  {symbol.replace('.c.0', '')}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="header-center">

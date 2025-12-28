@@ -64,7 +64,7 @@ fn default_sound_enabled() -> bool {
     true
 }
 fn default_symbols() -> Vec<String> {
-    vec!["NQ.c.0".to_string(), "ES.c.0".to_string()]
+    vec!["NQ.c.0".to_string()]
 }
 
 /// Response from Supabase insert with returning

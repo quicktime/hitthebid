@@ -67,7 +67,7 @@ struct Args {
     replay_speed: u32,
 
     /// Symbols to subscribe to (comma-separated) - for live/demo mode
-    #[arg(short = 's', long, default_value = "NQ.c.0,ES.c.0")]
+    #[arg(short = 's', long, default_value = "NQ.c.0")]
     symbols: String,
 
     /// Port to run the web server on
