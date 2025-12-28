@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { RustWebSocket, WsMessage, ReplayStatus } from './websocket';
 import { BubbleRenderer } from './BubbleRenderer';
 import { StatsPage } from './StatsPage';
@@ -888,6 +889,9 @@ function App() {
             <span className="logo-icon">◉</span>
             FLOW
           </h1>
+          <Link to="/journal" className="nav-link">
+            Journal
+          </Link>
           {isConnected && connectedSymbols.length > 0 && (
             <div className="symbol-selector">
               <button

@@ -74,6 +74,24 @@ body {
   gap: 24px;
 }
 
+.nav-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid var(--border-color);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-focus);
+}
+
 .header-center {
   flex: 1;
   display: flex;
