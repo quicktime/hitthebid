@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Custom theme extending Tailwind for trading platform */
@@ -27,6 +28,18 @@
   /* Typography */
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
   --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Global reset */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
 }
 
 /* Base styles */

@@ -549,11 +549,16 @@ function App() {
         <div className="header-left">
           <h1 className="logo">
             <span className="logo-icon">◉</span>
-            FLOW
+            HIT
           </h1>
-          <Link to="/journal" className="nav-link">
-            Journal
-          </Link>
+          <div className="symbol-selector">
+            <Link to="/flow" className="symbol-btn active">
+              Flow
+            </Link>
+            <Link to="/journal" className="symbol-btn">
+              Journal
+            </Link>
+          </div>
           {isConnected && connectedSymbols.length > 0 && (
             <div className="symbol-selector">
               <button
