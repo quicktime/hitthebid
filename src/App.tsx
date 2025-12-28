@@ -1,112 +1,14 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { RustWebSocket, WsMessage, ReplayStatus } from './websocket';
 import { BubbleRenderer } from './BubbleRenderer';
 import { StatsPage } from './StatsPage';
 import { ReplayControls } from './ReplayControls';
 import { SettingsPanel } from './SettingsPanel';
 import { DirectionChart } from './DirectionChart';
 import { PnLSimulator, SimulatedTrade } from './PnLSimulator';
+import { useFlowStore, Bubble, AbsorptionAlert, StackedImbalance, ConfluenceEvent } from './stores/flowStore';
+import { usePreferencesStore } from './stores/preferencesStore';
 import './App.css';
-
-interface Bubble {
-  id: string;
-  symbol: string;
-  price: number;
-  size: number;
-  side: 'buy' | 'sell';
-  timestamp: number;
-  x: number;
-  opacity: number;
-  isSignificantImbalance?: boolean;
-}
-
-interface CVDPoint {
-  timestamp: number;
-  value: number;
-  x: number;
-}
-
-interface ZeroCross {
-  timestamp: number;
-  direction: 'bullish' | 'bearish';
-  x: number;
-  price?: number;
-}
-
-interface AbsorptionAlert {
-  timestamp: number;
-  price: number;
-  absorptionType: 'buying' | 'selling';
-  delta: number;
-  strength: 'weak' | 'medium' | 'strong' | 'defended';
-  eventCount: number;
-  totalAbsorbed: number;
-  atKeyLevel: boolean;
-  againstTrend: boolean;
-  x: number;
-}
-
-interface AbsorptionZone {
-  price: number;
-  absorptionType: 'buying' | 'selling';
-  totalAbsorbed: number;
-  eventCount: number;
-  strength: 'weak' | 'medium' | 'strong' | 'defended';
-  atPoc: boolean;
-  atVah: boolean;
-  atVal: boolean;
-  againstTrend: boolean;
-}
-
-interface VolumeProfileLevel {
-  price: number;
-  buyVolume: number;
-  sellVolume: number;
-  totalVolume: number;
-}
-
-interface StackedImbalance {
-  timestamp: number;
-  side: 'buy' | 'sell';
-  levelCount: number;
-  priceHigh: number;
-  priceLow: number;
-  totalImbalance: number;
-  x: number;
-}
-
-interface ConfluenceEvent {
-  timestamp: number;
-  price: number;
-  direction: 'bullish' | 'bearish';
-  score: number;
-  signals: string[];
-  x: number;
-}
-
-interface SignalStats {
-  count: number;
-  bullishCount: number;
-  bearishCount: number;
-  wins: number;
-  losses: number;
-  avgMove1m: number;
-  avgMove5m: number;
-  winRate: number;
-}
-
-interface SessionStats {
-  sessionStart: number;
-  deltaFlips: SignalStats;
-  absorptions: SignalStats;
-  stackedImbalances: SignalStats;
-  confluences: SignalStats;
-  currentPrice: number;
-  sessionHigh: number;
-  sessionLow: number;
-  totalVolume: number;
-}
 
 const BUBBLE_LIFETIME_SECONDS = 120;
 
@@ -217,372 +119,196 @@ function playConfluenceSound(direction: 'bullish' | 'bearish') {
 }
 
 function App() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [bubbles, setBubbles] = useState<Bubble[]>([]);
-  const [lastPrice, setLastPrice] = useState<number | null>(null);
-  const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null);
-  const [cvdHistory, setCvdHistory] = useState<CVDPoint[]>([]);
-  const [currentCVD, setCurrentCVD] = useState(0);
-  const [cvdRange, setCvdRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
-  const [zeroCrosses, setZeroCrosses] = useState<ZeroCross[]>([]);
+  // Zustand stores
+  const {
+    isConnected,
+    error,
+    serverMode,
+    connectedSymbols,
+    lastPrice,
+    priceRange,
+    currentCVD,
+    cvdHistory,
+    cvdRange,
+    zeroCrosses,
+    cvdStartTime,
+    bubbles,
+    volumeProfile,
+    absorptionZones,
+    stackedImbalances,
+    sessionStats,
+    replayStatus,
+    isPaused,
+    connect,
+    disconnect,
+    resetCVD,
+    pause,
+    resume,
+    togglePause,
+    setReplaySpeed,
+    setMinSize: setMinSizeWs,
+    clearBubbles,
+    animateFrame,
+    cleanupOldItems,
+    clearError,
+    getFilteredBubbles,
+  } = useFlowStore();
+
+  const {
+    isSoundEnabled,
+    minSize,
+    selectedSymbol,
+    notificationsEnabled,
+    setMinSize,
+    setSymbol: setSelectedSymbol,
+    setNotifications: setNotificationsEnabled,
+    toggleSound,
+  } = usePreferencesStore();
+
+  // UI-only local state (not shared between components)
   const [cvdFlashAlert, setCvdFlashAlert] = useState<'bullish' | 'bearish' | null>(null);
   const [showCvdBadge, setShowCvdBadge] = useState<'bullish' | 'bearish' | null>(null);
-  const [volumeProfile, setVolumeProfile] = useState<Map<number, VolumeProfileLevel>>(new Map());
-  const [isPaused, setIsPaused] = useState(false);
   const [selectedBubble, setSelectedBubble] = useState<Bubble | null>(null);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [cvdStartTime, setCvdStartTime] = useState<number>(Date.now());
-  const [_absorptionAlerts, setAbsorptionAlerts] = useState<AbsorptionAlert[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
-  const [absorptionZones, setAbsorptionZones] = useState<AbsorptionZone[]>([]); // Passed to BubbleRenderer for canvas rendering
   const [showAbsorptionBadge, setShowAbsorptionBadge] = useState<AbsorptionAlert | null>(null);
-  const [stackedImbalances, setStackedImbalances] = useState<StackedImbalance[]>([]);
   const [showStackedBadge, setShowStackedBadge] = useState<StackedImbalance | null>(null);
-  const [_confluenceEvents, setConfluenceEvents] = useState<ConfluenceEvent[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [showConfluenceBadge, setShowConfluenceBadge] = useState<ConfluenceEvent | null>(null);
-  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
   const [currentView, setCurrentView] = useState<'chart' | 'stats' | 'history'>('chart');
-  const [serverMode, setServerMode] = useState<string>('live');
-  const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
-  const [connectedSymbols, setConnectedSymbols] = useState<string[]>([]);
-  const [selectedSymbol, setSelectedSymbol] = useState<string>('all');
   const [showSettings, setShowSettings] = useState(false);
-  const [minSize, setMinSize] = useState(1);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [notificationsPermission, setNotificationsPermission] = useState<NotificationPermission>('default');
   const [showPnLSimulator, setShowPnLSimulator] = useState(false);
   const [simulatedTrades, setSimulatedTrades] = useState<SimulatedTrade[]>([]);
 
-  const wsRef = useRef<RustWebSocket | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cvdBaselineRef = useRef<number>(0); // Offset for CVD reset
 
   // Filter bubbles by selected symbol
   const filteredBubbles = useMemo(() => {
-    if (selectedSymbol === 'all') return bubbles;
-    return bubbles.filter((b) => b.symbol === selectedSymbol);
-  }, [bubbles, selectedSymbol]);
-  const lastRawCvdRef = useRef<number>(0);  // Track last raw CVD from server
-  const prevAdjustedCvdRef = useRef<number>(0); // Track previous adjusted CVD for zero-cross
+    return getFilteredBubbles(selectedSymbol);
+  }, [getFilteredBubbles, selectedSymbol]);
 
-  // Connect to Rust backend
+  // Track previous signal counts to detect new signals
+  const prevZeroCrossCount = useRef(0);
+  const prevStackedCount = useRef(0);
+  const prevConfluenceCount = useRef(0);
+  const { absorptionAlerts } = useFlowStore();
+  const prevAbsorptionCount = useRef(0);
+
+  // Connect to Rust backend via store
   useEffect(() => {
-    const ws = new RustWebSocket();
-    wsRef.current = ws;
+    connect();
+    return () => disconnect();
+  }, [connect, disconnect]);
 
-    ws.onConnect(() => {
-      setIsConnected(true);
-      setError(null);
-      console.log('✅ Connected to Rust backend');
-    });
+  // React to new zero crosses (CVD flips) with UI effects
+  useEffect(() => {
+    if (zeroCrosses.length > prevZeroCrossCount.current) {
+      const latest = zeroCrosses[zeroCrosses.length - 1];
 
-    ws.onDisconnect(() => {
-      setIsConnected(false);
-      console.log('❌ Disconnected from Rust backend');
-    });
+      // Flash alert
+      setCvdFlashAlert(latest.direction);
+      setTimeout(() => setCvdFlashAlert(null), 500);
 
-    ws.onMessage((message: WsMessage) => {
-      switch (message.type) {
-        case 'Bubble':
-          const bubble: Bubble = {
-            id: message.id,
-            symbol: message.symbol,
-            price: message.price,
-            size: message.size,
-            side: message.side,
-            timestamp: message.timestamp,
-            x: message.x,
-            opacity: message.opacity,
-            isSignificantImbalance: message.isSignificantImbalance,
-          };
+      // Badge
+      setShowCvdBadge(latest.direction);
+      setTimeout(() => setShowCvdBadge(null), 3000);
 
-          setBubbles((prev) => [...prev, bubble]);
-
-          // Update last price and price range
-          setLastPrice(bubble.price);
-          setPriceRange((prev) => {
-            if (!prev) {
-              return { min: bubble.price - 10, max: bubble.price + 10 };
-            }
-            const padding = (prev.max - prev.min) * 0.1;
-            return {
-              min: Math.min(prev.min, bubble.price - padding),
-              max: Math.max(prev.max, bubble.price + padding),
-            };
-          });
-          break;
-
-        case 'CVDPoint':
-          // Apply baseline offset for reset functionality
-          const rawCvd = message.value;
-          lastRawCvdRef.current = rawCvd;
-          const adjustedCvd = rawCvd - cvdBaselineRef.current;
-
-          const cvdPoint: CVDPoint = {
-            timestamp: message.timestamp,
-            value: adjustedCvd,
-            x: message.x,
-          };
-
-          setCvdHistory((prev) => [...prev, cvdPoint]);
-          setCurrentCVD(adjustedCvd);
-
-          // Update CVD range
-          setCvdRange((prev) => ({
-            min: Math.min(prev.min, adjustedCvd),
-            max: Math.max(prev.max, adjustedCvd),
-          }));
-
-          // Zero-cross detection using refs to avoid stale closure
-          const prevCvd = prevAdjustedCvdRef.current;
-          prevAdjustedCvdRef.current = adjustedCvd;
-
-          const prevSign = Math.sign(prevCvd);
-          const newSign = Math.sign(adjustedCvd);
-
-          if (prevSign !== 0 && newSign !== 0 && prevSign !== newSign && Math.abs(prevCvd) >= 300) {
-            const direction = adjustedCvd > 0 ? 'bullish' : 'bearish';
-            console.log(`🚨 CVD ZERO CROSS: ${direction.toUpperCase()}`);
-
-            setZeroCrosses((prev) => [
-              ...prev,
-              {
-                timestamp: Date.now(),
-                direction,
-                x: 0.92,
-                price: lastPrice || undefined,
-              },
-            ]);
-
-            setCvdFlashAlert(direction);
-            setTimeout(() => setCvdFlashAlert(null), 500);
-
-            setShowCvdBadge(direction);
-            setTimeout(() => setShowCvdBadge(null), 3000);
-
-            if (isSoundEnabled) {
-              playAlertSound(direction);
-            }
-          }
-          break;
-
-        case 'VolumeProfile':
-          const profile = new Map<number, VolumeProfileLevel>();
-          message.levels.forEach((level) => {
-            profile.set(level.price, level);
-          });
-          setVolumeProfile(profile);
-          break;
-
-        case 'Absorption':
-          const absorption: AbsorptionAlert = {
-            timestamp: message.timestamp,
-            price: message.price,
-            absorptionType: message.absorptionType,
-            delta: message.delta,
-            strength: message.strength,
-            eventCount: message.eventCount,
-            totalAbsorbed: message.totalAbsorbed,
-            atKeyLevel: message.atKeyLevel,
-            againstTrend: message.againstTrend,
-            x: message.x,
-          };
-
-          console.log(
-            `🛡️ ABSORPTION [${absorption.strength.toUpperCase()}]: ${absorption.absorptionType} absorbed at ${absorption.price.toFixed(2)} | events=${absorption.eventCount} total=${absorption.totalAbsorbed} ${absorption.atKeyLevel ? '@ KEY LEVEL' : ''} ${absorption.againstTrend ? '⚠️ AGAINST TREND' : ''}`
-          );
-
-          setAbsorptionAlerts((prev) => [...prev, absorption]);
-
-          // Only show badge for medium+ strength
-          if (absorption.strength !== 'weak') {
-            setShowAbsorptionBadge(absorption);
-            setTimeout(() => setShowAbsorptionBadge(null), 4000);
-
-            if (isSoundEnabled) {
-              playAbsorptionSound(absorption.absorptionType);
-            }
-          }
-          break;
-
-        case 'AbsorptionZones':
-          setAbsorptionZones(message.zones.map(z => ({
-            price: z.price,
-            absorptionType: z.absorptionType,
-            totalAbsorbed: z.totalAbsorbed,
-            eventCount: z.eventCount,
-            strength: z.strength,
-            atPoc: z.atPoc,
-            atVah: z.atVah,
-            atVal: z.atVal,
-            againstTrend: z.againstTrend,
-          })));
-          break;
-
-        case 'DeltaFlip':
-          console.log(`⚡ DELTA FLIP from backend: ${message.direction.toUpperCase()} (${message.flipType})`);
-
-          // Add to zeroCrosses for visual display
-          setZeroCrosses((prev) => [
-            ...prev,
-            {
-              timestamp: message.timestamp,
-              direction: message.direction,
-              x: message.x,
-              price: lastPrice || undefined,
-            },
-          ]);
-
-          // Trigger visual alerts
-          setCvdFlashAlert(message.direction);
-          setTimeout(() => setCvdFlashAlert(null), 500);
-
-          setShowCvdBadge(message.direction);
-          setTimeout(() => setShowCvdBadge(null), 3000);
-
-          if (isSoundEnabled) {
-            playAlertSound(message.direction);
-          }
-          break;
-
-        case 'StackedImbalance':
-          console.log(
-            `📊 STACKED IMBALANCE [${message.side.toUpperCase()}]: ${message.levelCount} levels from ${message.priceLow.toFixed(2)} to ${message.priceHigh.toFixed(2)}`
-          );
-
-          const stacked: StackedImbalance = {
-            timestamp: message.timestamp,
-            side: message.side,
-            levelCount: message.levelCount,
-            priceHigh: message.priceHigh,
-            priceLow: message.priceLow,
-            totalImbalance: message.totalImbalance,
-            x: message.x,
-          };
-
-          setStackedImbalances((prev) => [...prev, stacked]);
-
-          // Show badge for 4+ levels (strong signal)
-          if (message.levelCount >= 4) {
-            setShowStackedBadge(stacked);
-            setTimeout(() => setShowStackedBadge(null), 3000);
-
-            if (isSoundEnabled) {
-              playStackedImbalanceSound(message.side);
-            }
-
-            // Browser notification for strong stacked imbalances
-            if (Notification.permission === 'granted' && !document.hasFocus()) {
-              new Notification(`Stacked Imbalance ${message.side.toUpperCase()}`, {
-                body: `${message.levelCount} levels from ${message.priceLow.toFixed(2)} to ${message.priceHigh.toFixed(2)}`,
-                tag: `stacked-${message.timestamp}`,
-                icon: '/favicon.ico',
-              });
-            }
-          }
-          break;
-
-        case 'Confluence':
-          console.log(
-            `🎯 CONFLUENCE [${message.score >= 3 ? 'HIGH' : 'MEDIUM'}]: ${message.signals.join(' + ')} → ${message.direction.toUpperCase()}`
-          );
-
-          const confluence: ConfluenceEvent = {
-            timestamp: message.timestamp,
-            price: message.price,
-            direction: message.direction,
-            score: message.score,
-            signals: message.signals,
-            x: message.x,
-          };
-
-          setConfluenceEvents((prev) => [...prev, confluence]);
-
-          // Always show confluence badge - it's a high-value signal
-          setShowConfluenceBadge(confluence);
-          setTimeout(() => setShowConfluenceBadge(null), 5000);
-
-          if (isSoundEnabled) {
-            playConfluenceSound(message.direction);
-          }
-
-          // Browser notification for confluence
-          if (Notification.permission === 'granted' && !document.hasFocus()) {
-            new Notification(`Confluence ${message.direction.toUpperCase()}`, {
-              body: `${message.signals.join(' + ')} at ${message.price.toFixed(2)}`,
-              tag: `confluence-${message.timestamp}`,
-              icon: '/favicon.ico',
-            });
-          }
-          break;
-
-        case 'SessionStats':
-          setSessionStats({
-            sessionStart: message.sessionStart,
-            deltaFlips: message.deltaFlips,
-            absorptions: message.absorptions,
-            stackedImbalances: message.stackedImbalances,
-            confluences: message.confluences,
-            currentPrice: message.currentPrice,
-            sessionHigh: message.sessionHigh,
-            sessionLow: message.sessionLow,
-            totalVolume: message.totalVolume,
-          });
-          break;
-
-        case 'Connected':
-          console.log('📡 Connected to symbols:', message.symbols, 'mode:', message.mode);
-          setServerMode(message.mode);
-          setConnectedSymbols(message.symbols);
-          break;
-
-        case 'ReplayStatus':
-          setReplayStatus({
-            mode: message.mode,
-            isPaused: message.isPaused,
-            speed: message.speed,
-            replayDate: message.replayDate,
-            replayProgress: message.replayProgress,
-            currentTime: message.currentTime,
-          });
-          break;
-
-        case 'Error':
-          console.error('Backend error:', message.message);
-          setError(message.message);
-          break;
+      // Sound
+      if (isSoundEnabled) {
+        playAlertSound(latest.direction);
       }
-    });
+    }
+    prevZeroCrossCount.current = zeroCrosses.length;
+  }, [zeroCrosses, isSoundEnabled]);
 
-    ws.connect().catch((e) => {
-      console.error('Failed to connect:', e);
-      setError('Failed to connect to Rust backend. Make sure the server is running.');
-    });
+  // React to new absorption alerts with UI effects
+  useEffect(() => {
+    if (absorptionAlerts.length > prevAbsorptionCount.current) {
+      const latest = absorptionAlerts[absorptionAlerts.length - 1];
 
-    return () => {
-      ws.disconnect();
-    };
-  }, []); // Only run once on mount
+      // Only show badge for medium+ strength
+      if (latest.strength !== 'weak') {
+        setShowAbsorptionBadge(latest);
+        setTimeout(() => setShowAbsorptionBadge(null), 4000);
 
-  // Replay control callbacks
+        if (isSoundEnabled) {
+          playAbsorptionSound(latest.absorptionType);
+        }
+      }
+    }
+    prevAbsorptionCount.current = absorptionAlerts.length;
+  }, [absorptionAlerts, isSoundEnabled]);
+
+  // React to new stacked imbalances with UI effects
+  useEffect(() => {
+    if (stackedImbalances.length > prevStackedCount.current) {
+      const latest = stackedImbalances[stackedImbalances.length - 1];
+
+      // Show badge for 4+ levels (strong signal)
+      if (latest.levelCount >= 4) {
+        setShowStackedBadge(latest);
+        setTimeout(() => setShowStackedBadge(null), 3000);
+
+        if (isSoundEnabled) {
+          playStackedImbalanceSound(latest.side);
+        }
+
+        // Browser notification
+        if (Notification.permission === 'granted' && !document.hasFocus()) {
+          new Notification(`Stacked Imbalance ${latest.side.toUpperCase()}`, {
+            body: `${latest.levelCount} levels from ${latest.priceLow.toFixed(2)} to ${latest.priceHigh.toFixed(2)}`,
+            tag: `stacked-${latest.timestamp}`,
+            icon: '/favicon.ico',
+          });
+        }
+      }
+    }
+    prevStackedCount.current = stackedImbalances.length;
+  }, [stackedImbalances, isSoundEnabled]);
+
+  // React to new confluence events with UI effects
+  const { confluenceEvents } = useFlowStore();
+  useEffect(() => {
+    if (confluenceEvents.length > prevConfluenceCount.current) {
+      const latest = confluenceEvents[confluenceEvents.length - 1];
+
+      // Always show confluence badge
+      setShowConfluenceBadge(latest);
+      setTimeout(() => setShowConfluenceBadge(null), 5000);
+
+      if (isSoundEnabled) {
+        playConfluenceSound(latest.direction);
+      }
+
+      // Browser notification
+      if (Notification.permission === 'granted' && !document.hasFocus()) {
+        new Notification(`Confluence ${latest.direction.toUpperCase()}`, {
+          body: `${latest.signals.join(' + ')} at ${latest.price.toFixed(2)}`,
+          tag: `confluence-${latest.timestamp}`,
+          icon: '/favicon.ico',
+        });
+      }
+    }
+    prevConfluenceCount.current = confluenceEvents.length;
+  }, [confluenceEvents, isSoundEnabled]);
+
+  // Replay control callbacks using store actions
   const handleReplayPause = useCallback(() => {
-    wsRef.current?.replayPause();
-  }, []);
+    pause();
+  }, [pause]);
 
   const handleReplayResume = useCallback(() => {
-    wsRef.current?.replayResume();
-  }, []);
+    resume();
+  }, [resume]);
 
   const handleReplaySpeedChange = useCallback((speed: number) => {
-    wsRef.current?.setReplaySpeed(speed);
-  }, []);
+    setReplaySpeed(speed);
+  }, [setReplaySpeed]);
 
   const handleMinSizeChange = useCallback((size: number) => {
-    wsRef.current?.setMinSize(size);
+    setMinSizeWs(size);
     setMinSize(size);
-  }, []);
+  }, [setMinSizeWs, setMinSize]);
 
   // Request notification permission
   const requestNotificationPermission = useCallback(async () => {
@@ -652,19 +378,6 @@ function App() {
       setNotificationsPermission(Notification.permission);
       setNotificationsEnabled(Notification.permission === 'granted');
     }
-  }, []);
-
-  // Reset CVD function
-  const resetCVD = useCallback(() => {
-    // Set baseline to current raw CVD so future values start from 0
-    cvdBaselineRef.current = lastRawCvdRef.current;
-    prevAdjustedCvdRef.current = 0;
-    setCurrentCVD(0);
-    setCvdHistory([]);
-    setCvdRange({ min: 0, max: 0 });
-    setZeroCrosses([]);
-    setCvdStartTime(Date.now());
-    console.log('🔄 CVD RESET - Starting fresh (baseline set to', lastRawCvdRef.current, ')');
   }, []);
 
   // Export screenshot
@@ -765,24 +478,20 @@ function App() {
       switch (key) {
         case 'r':
           resetCVD();
-          console.log('⌨️ Keyboard: CVD Reset (R)');
+          console.log('Keyboard: CVD Reset (R)');
           break;
         case ' ':
           e.preventDefault();
-          setIsPaused((prev) => {
-            console.log(`⌨️ Keyboard: ${!prev ? 'Paused' : 'Resumed'} (Space)`);
-            return !prev;
-          });
+          togglePause();
+          console.log(`Keyboard: ${isPaused ? 'Resumed' : 'Paused'} (Space)`);
           break;
         case 'c':
-          setBubbles([]);
-          console.log('⌨️ Keyboard: Cleared bubbles (C)');
+          clearBubbles();
+          console.log('Keyboard: Cleared bubbles (C)');
           break;
         case 'm':
-          setIsSoundEnabled((prev) => {
-            console.log(`⌨️ Keyboard: Sound ${!prev ? 'Enabled' : 'Muted'} (M)`);
-            return !prev;
-          });
+          toggleSound();
+          console.log(`Keyboard: Sound ${isSoundEnabled ? 'Muted' : 'Enabled'} (M)`);
           break;
         case 's':
           exportScreenshot();
@@ -792,7 +501,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [resetCVD, exportScreenshot, showShortcutsHelp, selectedBubble]);
+  }, [resetCVD, exportScreenshot, showShortcutsHelp, selectedBubble, togglePause, isPaused, clearBubbles, toggleSound, isSoundEnabled]);
 
   // Animation loop - TIME-BASED
   useEffect(() => {
@@ -802,6 +511,7 @@ function App() {
 
     const SPEED_PER_SECOND = (0.77 / BUBBLE_LIFETIME_SECONDS) * 3; // 3x faster panning
     const CLEANUP_INTERVAL_MS = 1000;
+    const MAX_AGE_MS = BUBBLE_LIFETIME_SECONDS * 1000;
 
     const animate = (currentTime: number) => {
       if (isPaused) {
@@ -816,70 +526,22 @@ function App() {
 
       const movement = SPEED_PER_SECOND * deltaTime;
 
+      // Cleanup old items periodically
       const shouldCleanup = currentTime - lastCleanupTime >= CLEANUP_INTERVAL_MS;
       if (shouldCleanup) {
         lastCleanupTime = currentTime;
-
-        const now = Date.now();
-        const maxAge = BUBBLE_LIFETIME_SECONDS * 1000;
-
-        setBubbles((prev) => prev.filter((b) => now - b.timestamp < maxAge));
-        setCvdHistory((prev) => prev.filter((p) => now - p.timestamp < maxAge));
-        setZeroCrosses((prev) => prev.filter((c) => now - c.timestamp < maxAge));
-        setAbsorptionAlerts((prev) => prev.filter((a) => now - a.timestamp < maxAge));
-        setStackedImbalances((prev) => prev.filter((s) => now - s.timestamp < maxAge));
-        setConfluenceEvents((prev) => prev.filter((c) => now - c.timestamp < maxAge));
+        cleanupOldItems(MAX_AGE_MS);
       }
 
-      setBubbles((prev) =>
-        prev.map((bubble) => ({
-          ...bubble,
-          x: bubble.x - movement,
-          opacity: 1,
-        }))
-      );
-
-      setCvdHistory((prev) =>
-        prev.map((point) => ({
-          ...point,
-          x: point.x - movement,
-        }))
-      );
-
-      setZeroCrosses((prev) =>
-        prev.map((cross) => ({
-          ...cross,
-          x: cross.x - movement,
-        }))
-      );
-
-      setAbsorptionAlerts((prev) =>
-        prev.map((alert) => ({
-          ...alert,
-          x: alert.x - movement,
-        }))
-      );
-
-      setStackedImbalances((prev) =>
-        prev.map((stacked) => ({
-          ...stacked,
-          x: stacked.x - movement,
-        }))
-      );
-
-      setConfluenceEvents((prev) =>
-        prev.map((conf) => ({
-          ...conf,
-          x: conf.x - movement,
-        }))
-      );
+      // Animate all items
+      animateFrame(movement);
 
       animationFrameId = requestAnimationFrame(animate);
     };
 
     animationFrameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused]);
+  }, [isPaused, animateFrame, cleanupOldItems]);
 
   return (
     <div className="app">
@@ -948,7 +610,7 @@ function App() {
               </button>
               <button
                 className={`sound-toggle-btn ${isSoundEnabled ? 'enabled' : 'disabled'}`}
-                onClick={() => setIsSoundEnabled(!isSoundEnabled)}
+                onClick={toggleSound}
                 title={isSoundEnabled ? 'Mute alerts' : 'Unmute alerts'}
               >
                 {isSoundEnabled ? '🔊' : '🔇'}
@@ -1031,7 +693,7 @@ function App() {
         minSize={minSize}
         onMinSizeChange={handleMinSizeChange}
         isSoundEnabled={isSoundEnabled}
-        onSoundToggle={() => setIsSoundEnabled(!isSoundEnabled)}
+        onSoundToggle={toggleSound}
         notificationsEnabled={notificationsEnabled}
         notificationsPermission={notificationsPermission}
         onRequestNotificationPermission={requestNotificationPermission}
@@ -1105,7 +767,7 @@ function App() {
       {error && (
         <div className="error-banner">
           ⚠️ {error}
-          <button onClick={() => setError(null)}>✕</button>
+          <button onClick={clearError}>✕</button>
         </div>
       )}
 
