@@ -23,7 +23,7 @@ use crate::lvn::LvnLevel;
 use crate::market_state::{detect_market_state, MarketState, MarketStateConfig};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Configuration for LVN retest strategy
 #[derive(Debug, Clone)]
@@ -163,6 +163,7 @@ pub struct Trade {
     pub stop_loss: f64,
     pub take_profit: f64,
     pub pnl_points: f64,
+    pub peak_unrealized: f64,  // Max favorable excursion (for DD tracking)
     pub outcome: Outcome,
     pub level_price: f64,
     pub hold_bars: usize,
@@ -206,7 +207,7 @@ impl LvnRetestBacktester {
     /// Run the backtest
     pub fn run(&self) -> Results {
         let mut trades = Vec::new();
-        let mut tracked_levels: HashMap<i64, TrackedLevel> = HashMap::new();
+        let mut tracked_levels: BTreeMap<i64, TrackedLevel> = BTreeMap::new();
         let mut last_trade_exit_bar: Option<usize> = None;
 
         // Initialize tracked levels from LVN data (filtered by quality)
@@ -287,7 +288,7 @@ impl LvnRetestBacktester {
     /// Update the state of all tracked levels based on current price
     fn update_level_states(
         &self,
-        levels: &mut HashMap<i64, TrackedLevel>,
+        levels: &mut BTreeMap<i64, TrackedLevel>,
         bar_idx: usize,
         bar: &Bar,
         prev_bar: &Bar,
@@ -343,7 +344,7 @@ impl LvnRetestBacktester {
     /// 3. Aggression: HEAVY buying (at support) or selling (at resistance)
     fn check_for_signal(
         &self,
-        levels: &mut HashMap<i64, TrackedLevel>,
+        levels: &mut BTreeMap<i64, TrackedLevel>,
         bar_idx: usize,
         bar: &Bar,
     ) -> Option<(i64, Direction, String)> {
@@ -554,6 +555,12 @@ impl LvnRetestBacktester {
 
         let exit_bar = &self.bars[exit_bar_idx];
 
+        // Calculate peak unrealized (max favorable excursion)
+        let peak_unrealized = match direction {
+            Direction::Long => highest_price - entry_price,
+            Direction::Short => entry_price - lowest_price,
+        };
+
         Some((
             Trade {
                 entry_time: entry_bar.timestamp,
@@ -564,6 +571,7 @@ impl LvnRetestBacktester {
                 stop_loss: initial_stop,
                 take_profit,
                 pnl_points,
+                peak_unrealized,
                 outcome,
                 level_price,
                 hold_bars: exit_bar_idx - entry_bar_idx,

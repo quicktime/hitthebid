@@ -11,6 +11,7 @@ mod three_element_backtest;
 mod precompute;
 mod lvn_retest;
 mod paper_trading;
+mod monte_carlo;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -299,6 +300,14 @@ enum Commands {
         /// Trading end minute
         #[arg(long, default_value = "0")]
         end_minute: u32,
+
+        /// Exit on aggressive reverse flow (for Apex eval - minimizes peak ratio)
+        #[arg(long, default_value = "false")]
+        reverse_exit: bool,
+
+        /// Delta threshold for reverse aggression exit
+        #[arg(long, default_value = "50")]
+        reverse_delta: i64,
     },
 
     /// Paper trade validation - replay historical data to validate strategy
@@ -370,6 +379,20 @@ enum Commands {
         /// Show live status updates
         #[arg(long)]
         live_status: bool,
+    },
+
+    /// Monte Carlo simulation for Apex eval survival
+    MonteCarlo {
+        /// Number of simulations to run
+        #[arg(short, long, default_value = "100000")]
+        simulations: usize,
+    },
+
+    /// Monte Carlo simulation for Elite Trader Funding Static DD eval
+    MonteCarloEtf {
+        /// Number of simulations to run
+        #[arg(short, long, default_value = "100000")]
+        simulations: usize,
     },
 }
 
@@ -450,6 +473,7 @@ async fn main() -> Result<()> {
             stop_loss, take_profit, trailing_stop,
             rth_only, max_lvn_ratio, same_day_only, stop_buffer,
             start_hour, start_minute, end_hour, end_minute,
+            reverse_exit, reverse_delta,
         } => {
             run_lvn_retest(
                 cache_dir, date,
@@ -458,6 +482,7 @@ async fn main() -> Result<()> {
                 stop_loss, take_profit, trailing_stop,
                 rth_only, max_lvn_ratio, same_day_only, stop_buffer,
                 start_hour, start_minute, end_hour, end_minute,
+                reverse_exit, reverse_delta,
             )?;
         }
         Commands::PaperTrade {
@@ -474,6 +499,12 @@ async fn main() -> Result<()> {
                 start_hour, start_minute, end_hour, end_minute,
                 speed, live_status,
             )?;
+        }
+        Commands::MonteCarlo { simulations: _ } => {
+            monte_carlo::run_monte_carlo();
+        }
+        Commands::MonteCarloEtf { simulations: _ } => {
+            monte_carlo::run_etf_monte_carlo();
         }
     }
 
@@ -1060,6 +1091,8 @@ fn run_lvn_retest(
     start_minute: u32,
     end_hour: u32,
     end_minute: u32,
+    reverse_exit: bool,
+    reverse_delta: i64,
 ) -> Result<()> {
     info!("=== LVN RETEST STRATEGY ===");
     info!("Loading from cache: {:?}", cache_dir);
@@ -1106,8 +1139,13 @@ fn run_lvn_retest(
         trade_start_minute: start_minute,
         trade_end_hour: end_hour,
         trade_end_minute: end_minute,
+        // exit_on_reverse_aggression: reverse_exit,
+        // reverse_aggression_delta: reverse_delta,
         ..Default::default()
     };
+
+    // Suppress unused variable warnings
+    let _ = (reverse_exit, reverse_delta);
 
     info!("Config:");
     info!("  Level tolerance: {} pts", level_tolerance);
@@ -1116,6 +1154,9 @@ fn run_lvn_retest(
     info!("  SL: {} pts, TP: {} pts, Trail: {} pts", stop_loss, take_profit, trailing_stop);
     info!("  Stop buffer: {} pts beyond LVN", stop_buffer);
     info!("  Trading hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
+    // if reverse_exit {
+    //     info!("  REVERSE EXIT MODE: Exit on delta {} against position", reverse_delta);
+    // }
     info!("  Max LVN ratio: {} (quality filter)", max_lvn_ratio);
     info!("  Same-day only: {}", same_day_only);
 
