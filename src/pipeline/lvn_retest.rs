@@ -96,7 +96,7 @@ impl Default for LvnRetestConfig {
 
 /// State of an LVN level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LevelState {
+pub enum LevelState {
     /// Never touched today
     Untouched,
     /// Price has touched but not moved away yet
@@ -109,22 +109,22 @@ enum LevelState {
 
 /// Tracked LVN with state
 #[derive(Debug, Clone)]
-struct TrackedLevel {
-    price: f64,
-    state: LevelState,
-    first_touch_bar: Option<usize>,
-    armed_bar: Option<usize>,
-    last_traded_bar: Option<usize>,
+pub struct TrackedLevel {
+    pub price: f64,
+    pub state: LevelState,
+    pub first_touch_bar: Option<usize>,
+    pub armed_bar: Option<usize>,
+    pub last_traded_bar: Option<usize>,
     /// Track which side price came from (above = true, below = false)
-    approached_from_above: Option<bool>,
+    pub approached_from_above: Option<bool>,
     /// Direction of the impulse that created this LVN
-    impulse_direction: ImpulseDirection,
+    pub impulse_direction: ImpulseDirection,
     /// Volume ratio - lower = thinner LVN = higher quality
-    volume_ratio: f64,
+    pub volume_ratio: f64,
     /// Date the LVN was created
-    lvn_date: chrono::NaiveDate,
+    pub lvn_date: chrono::NaiveDate,
     /// Bar index when absorption was detected (counter-pressure absorbed)
-    absorption_bar: Option<usize>,
+    pub absorption_bar: Option<usize>,
 }
 
 /// Trade direction
@@ -140,6 +140,272 @@ impl std::fmt::Display for Direction {
             Direction::Long => write!(f, "Long"),
             Direction::Short => write!(f, "Short"),
         }
+    }
+}
+
+/// Signal emitted when a valid LVN retest is detected
+#[derive(Debug, Clone)]
+pub struct LvnSignal {
+    pub direction: Direction,
+    pub price: f64,
+    pub level_price: f64,
+    pub delta: i64,
+    pub reason: String,
+}
+
+/// Reusable signal generator for LVN retest strategy
+///
+/// This struct encapsulates the signal detection logic from the backtester
+/// so it can be reused by the live trading engine.
+pub struct LvnSignalGenerator {
+    config: LvnRetestConfig,
+    tracked_levels: BTreeMap<i64, TrackedLevel>,
+    bar_count: usize,
+    last_trade_bar: Option<usize>,
+    bars_buffer: Vec<Bar>,  // Rolling buffer for market state detection
+}
+
+impl LvnSignalGenerator {
+    /// Create a new signal generator with the given config
+    pub fn new(config: LvnRetestConfig) -> Self {
+        Self {
+            config,
+            tracked_levels: BTreeMap::new(),
+            bar_count: 0,
+            last_trade_bar: None,
+            bars_buffer: Vec::with_capacity(200),
+        }
+    }
+
+    /// Add LVN levels to track
+    pub fn add_lvn_levels(&mut self, levels: &[LvnLevel]) {
+        for lvn in levels {
+            // Quality filter: only use thin LVNs
+            if lvn.volume_ratio > self.config.max_lvn_volume_ratio {
+                continue;
+            }
+
+            let key = (lvn.price * 10.0) as i64;
+            self.tracked_levels.insert(key, TrackedLevel {
+                price: lvn.price,
+                state: LevelState::Untouched,
+                first_touch_bar: None,
+                armed_bar: None,
+                last_traded_bar: None,
+                approached_from_above: None,
+                impulse_direction: lvn.impulse_direction,
+                volume_ratio: lvn.volume_ratio,
+                lvn_date: lvn.date,
+                absorption_bar: None,
+            });
+        }
+    }
+
+    /// Clear all tracked levels (call at end of day)
+    pub fn clear_levels(&mut self) {
+        self.tracked_levels.clear();
+        self.bar_count = 0;
+        self.last_trade_bar = None;
+        self.bars_buffer.clear();
+    }
+
+    /// Process a bar and check for signals
+    /// Returns Some(LvnSignal) if a valid signal is detected
+    pub fn process_bar(&mut self, bar: &Bar) -> Option<LvnSignal> {
+        self.bar_count += 1;
+
+        // Add bar to buffer for market state detection
+        self.bars_buffer.push(bar.clone());
+        if self.bars_buffer.len() > 200 {
+            self.bars_buffer.remove(0);
+        }
+
+        // Need at least 2 bars
+        if self.bars_buffer.len() < 2 {
+            return None;
+        }
+
+        let bar_idx = self.bar_count;
+        // Clone prev_bar to avoid borrow issues
+        let prev_bar = self.bars_buffer[self.bars_buffer.len() - 2].clone();
+
+        // Check global cooldown
+        if let Some(last_bar) = self.last_trade_bar {
+            if bar_idx < last_bar + self.config.cooldown_bars {
+                self.update_level_states(bar_idx, bar, &prev_bar);
+                return None;
+            }
+        }
+
+        // Check trading hours
+        if self.config.rth_only && !self.is_trading_hours(bar) {
+            return None;
+        }
+
+        // Update level states
+        self.update_level_states(bar_idx, bar, &prev_bar);
+
+        // Check for signal
+        if let Some((level_key, direction, reason)) = self.check_for_signal(bar_idx, bar) {
+            // Check level cooldown
+            if let Some(level) = self.tracked_levels.get(&level_key) {
+                if let Some(last_bar) = level.last_traded_bar {
+                    if bar_idx < last_bar + self.config.level_cooldown_bars {
+                        return None;
+                    }
+                }
+            }
+
+            // Mark as traded
+            self.last_trade_bar = Some(bar_idx);
+            if let Some(level) = self.tracked_levels.get_mut(&level_key) {
+                level.last_traded_bar = Some(bar_idx);
+                level.state = LevelState::Touched;
+            }
+
+            let level_price = level_key as f64 / 10.0;
+            return Some(LvnSignal {
+                direction,
+                price: bar.close,
+                level_price,
+                delta: bar.delta,
+                reason,
+            });
+        }
+
+        None
+    }
+
+    /// Update the state of all tracked levels based on current price
+    fn update_level_states(&mut self, bar_idx: usize, bar: &Bar, prev_bar: &Bar) {
+        let price = bar.close;
+        let prev_price = prev_bar.close;
+
+        for level in self.tracked_levels.values_mut() {
+            let distance = (price - level.price).abs();
+
+            match level.state {
+                LevelState::Untouched => {
+                    if distance <= self.config.level_tolerance {
+                        level.state = LevelState::Touched;
+                        level.first_touch_bar = Some(bar_idx);
+                        level.approached_from_above = Some(prev_price > level.price);
+                    }
+                }
+                LevelState::Touched => {
+                    if distance > self.config.retest_distance {
+                        level.state = LevelState::Armed;
+                        level.armed_bar = Some(bar_idx);
+                    }
+                }
+                LevelState::Armed => {
+                    if distance <= self.config.level_tolerance {
+                        level.state = LevelState::Retesting;
+                        level.approached_from_above = Some(prev_price > level.price);
+                    }
+                }
+                LevelState::Retesting => {
+                    if distance > self.config.level_tolerance * 2.0 {
+                        if distance > self.config.retest_distance {
+                            level.state = LevelState::Armed;
+                        } else {
+                            level.state = LevelState::Touched;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Check for trend continuation signal at retesting LVN
+    fn check_for_signal(&self, bar_idx: usize, bar: &Bar) -> Option<(i64, Direction, String)> {
+        // ELEMENT 1: Market State - must be IMBALANCED (trending)
+        let market_config = MarketStateConfig::default();
+        let market_state = detect_market_state(&self.bars_buffer, self.bars_buffer.len() - 1, &market_config);
+
+        if market_state.state != MarketState::Imbalanced {
+            return None;
+        }
+
+        let price = bar.close;
+        let delta = bar.delta;
+        let range = bar.high - bar.low;
+
+        // ELEMENT 3: HEAVY aggression in trend direction
+        if delta.abs() < self.config.min_delta_for_absorption {
+            return None;
+        }
+
+        let current_date = bar.timestamp.date_naive();
+
+        // ELEMENT 2: Location - find a retesting level near current price
+        for (&key, level) in self.tracked_levels.iter() {
+            if level.state != LevelState::Retesting {
+                continue;
+            }
+
+            if self.config.same_day_only && level.lvn_date != current_date {
+                continue;
+            }
+
+            let distance = (price - level.price).abs();
+            if distance > self.config.level_tolerance {
+                continue;
+            }
+
+            // Trade direction based on impulse direction
+            let trade_direction = match level.impulse_direction {
+                ImpulseDirection::Up => Direction::Long,
+                ImpulseDirection::Down => Direction::Short,
+            };
+
+            // TREND CONTINUATION: HEAVY aggression IN the trend direction
+            let is_trend_continuation = match trade_direction {
+                Direction::Long => delta > 0,
+                Direction::Short => delta < 0,
+            };
+
+            if !is_trend_continuation {
+                continue;
+            }
+
+            // Price should hold (not break through the level)
+            if range > self.config.max_range_for_absorption {
+                continue;
+            }
+
+            let reason = format!(
+                "Trend continuation at LVN {:.2}: impulse={:?}, delta={}, range={:.2}",
+                level.price, level.impulse_direction, delta, range
+            );
+
+            return Some((key, trade_direction, reason));
+        }
+
+        None
+    }
+
+    /// Check if bar is during configured trading hours
+    fn is_trading_hours(&self, bar: &Bar) -> bool {
+        let hour = bar.timestamp.hour();
+        let minute = bar.timestamp.minute();
+        let time_mins = hour * 60 + minute;
+
+        // Convert ET to UTC (add 5 hours)
+        let start_utc = (self.config.trade_start_hour + 5) * 60 + self.config.trade_start_minute;
+        let end_utc = (self.config.trade_end_hour + 5) * 60 + self.config.trade_end_minute;
+
+        time_mins >= start_utc && time_mins < end_utc
+    }
+
+    /// Get the current config
+    pub fn config(&self) -> &LvnRetestConfig {
+        &self.config
+    }
+
+    /// Get tracked level count
+    pub fn level_count(&self) -> usize {
+        self.tracked_levels.len()
     }
 }
 

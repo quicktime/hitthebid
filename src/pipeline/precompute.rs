@@ -149,11 +149,29 @@ pub fn extract_date_from_path(path: &Path) -> Option<String> {
 }
 
 /// Load all cached data from cache directory
+/// date_filter can be:
+/// - Single date: "20250915"
+/// - Month prefix: "202509"
+/// - Date range: "20250901-20251120" (inclusive)
 pub fn load_all_cached(cache_dir: &Path, date_filter: Option<&str>) -> Result<Vec<DayData>> {
     let cached_dates = get_cached_dates(cache_dir)?;
 
     let dates_to_load: Vec<_> = if let Some(filter) = date_filter {
-        cached_dates.into_iter().filter(|d| d.contains(filter)).collect()
+        // Support date ranges with ":" separator (e.g., "20250901:20251120")
+        if filter.contains(':') {
+            let parts: Vec<&str> = filter.split(':').collect();
+            if parts.len() == 2 {
+                let start = parts[0];
+                let end = parts[1];
+                cached_dates.into_iter()
+                    .filter(|d| d.as_str() >= start && d.as_str() <= end)
+                    .collect()
+            } else {
+                cached_dates.into_iter().filter(|d| d.contains(filter)).collect()
+            }
+        } else {
+            cached_dates.into_iter().filter(|d| d.contains(filter)).collect()
+        }
     } else {
         cached_dates
     };

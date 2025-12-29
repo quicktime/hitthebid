@@ -13,6 +13,8 @@ mod lvn_retest;
 mod paper_trading;
 mod monte_carlo;
 mod live_trading;
+mod replay_trading;
+mod rithmic_live;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -461,6 +463,148 @@ enum Commands {
         /// Starting balance for prop firm tracking
         #[arg(long, default_value = "30000")]
         starting_balance: f64,
+
+        /// Replay speed (1 = realtime, 20 = 20x speed, 0 = max speed)
+        #[arg(long, default_value = "0")]
+        speed: u32,
+    },
+
+    /// Replay test - validates live trading code against historical data
+    ReplayTest {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio (lower = thinner = higher quality)
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Max losing trades per day (0 = disabled)
+        #[arg(long, default_value = "0")]
+        max_daily_losses: i32,
+    },
+
+    /// Live trading via Rithmic (paper or live mode)
+    Live {
+        /// Trading mode: "paper" or "live"
+        #[arg(long, default_value = "paper")]
+        mode: String,
+
+        /// Symbol to trade (without exchange suffix)
+        #[arg(long, default_value = "NQ")]
+        symbol: String,
+
+        /// Exchange
+        #[arg(long, default_value = "CME")]
+        exchange: String,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance for tracking
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Max losing trades per day (0 = disabled)
+        #[arg(long, default_value = "3")]
+        max_daily_losses: i32,
+
+        /// Daily loss limit in points
+        #[arg(long, default_value = "100")]
+        daily_loss_limit: f64,
     },
 }
 
@@ -580,7 +724,7 @@ async fn main() -> Result<()> {
             cache_dir, date,
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
-            starting_balance,
+            starting_balance, speed,
         } => {
             run_trade(
                 mode, contracts, daily_loss_limit,
@@ -588,8 +732,92 @@ async fn main() -> Result<()> {
                 cache_dir, date,
                 start_hour, start_minute, end_hour, end_minute,
                 min_delta, max_lvn_ratio, level_tolerance,
-                starting_balance,
+                starting_balance, speed,
             ).await?;
+        }
+        Commands::ReplayTest {
+            cache_dir, date,
+            contracts, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance, max_daily_losses,
+        } => {
+            let lvn_config = lvn_retest::LvnRetestConfig {
+                level_tolerance,
+                retest_distance: 8.0,
+                min_delta_for_absorption: min_delta,
+                max_range_for_absorption: 1.5,
+                stop_loss: stop_buffer,
+                take_profit,
+                trailing_stop,
+                max_hold_bars: 300,
+                rth_only: true,
+                cooldown_bars: 60,
+                level_cooldown_bars: 600,
+                max_lvn_volume_ratio: max_lvn_ratio,
+                same_day_only: false,
+                min_absorption_bars: 1,
+                structure_stop_buffer: stop_buffer,
+                trade_start_hour: start_hour,
+                trade_start_minute: start_minute,
+                trade_end_hour: end_hour,
+                trade_end_minute: end_minute,
+            };
+
+            let config = replay_trading::ReplayConfig {
+                lvn_config,
+                starting_balance,
+                contracts,
+                point_value: 20.0,
+                max_daily_losses,
+            };
+
+            replay_trading::run_replay(cache_dir, date, config).await?;
+        }
+        Commands::Live {
+            mode, symbol, exchange, contracts, cache_dir,
+            take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance, max_daily_losses, daily_loss_limit,
+        } => {
+            let paper_mode = mode.to_lowercase() != "live";
+
+            if !paper_mode {
+                println!("\n⚠️  LIVE TRADING MODE ⚠️");
+                println!("This will execute REAL trades with REAL money.");
+                println!("Type 'CONFIRM' to proceed:");
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+                if input.trim() != "CONFIRM" {
+                    println!("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            let config = rithmic_live::LiveConfig {
+                symbol,
+                exchange,
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
+                starting_balance,
+                max_daily_losses,
+                daily_loss_limit,
+                point_value: 20.0, // NQ point value
+            };
+
+            rithmic_live::run_live(config, paper_mode).await?;
         }
     }
 
@@ -1429,6 +1657,7 @@ async fn run_trade(
     max_lvn_ratio: f64,
     level_tolerance: f64,
     starting_balance: f64,
+    speed: u32,
 ) -> Result<()> {
     live_trading::run_trading(
         mode,
@@ -1447,5 +1676,6 @@ async fn run_trade(
         max_lvn_ratio,
         level_tolerance,
         starting_balance,
+        speed,
     ).await
 }

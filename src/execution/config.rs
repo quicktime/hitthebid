@@ -47,6 +47,9 @@ pub struct ExecutionConfig {
     /// Daily loss limit in points (trading stops when reached)
     pub daily_loss_limit: f64,
 
+    /// Max losing trades per day (trading stops when reached)
+    pub max_daily_losses: i32,
+
     /// Take profit target in points
     pub take_profit: f64,
 
@@ -95,6 +98,7 @@ impl Default for ExecutionConfig {
             exchange: "CME".to_string(),
             max_position_size: 1,
             daily_loss_limit: 100.0,  // $2,000 with 1 NQ
+            max_daily_losses: 3,       // Stop after 3 losing trades
             take_profit: 30.0,         // From backtest
             trailing_stop: 6.0,        // From backtest
             stop_buffer: 1.5,          // From backtest
@@ -118,6 +122,7 @@ impl ExecutionConfig {
         Self {
             max_position_size: 2,
             daily_loss_limit: 125.0,  // $2,500 DD / $20 per pt = 125 pts
+            max_daily_losses: 3,      // Stop after 3 losses
             ..Default::default()
         }
     }
@@ -127,6 +132,7 @@ impl ExecutionConfig {
         Self {
             max_position_size: 4,
             daily_loss_limit: 100.0,  // $2,000 DD / $20 per pt = 100 pts
+            max_daily_losses: 3,      // Stop after 3 losses
             ..Default::default()
         }
     }

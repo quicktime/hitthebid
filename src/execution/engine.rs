@@ -41,6 +41,10 @@ pub enum ExecutionEvent {
     DailyLimitReached {
         pnl_points: f64,
     },
+    /// Max daily losses reached
+    MaxLossesReached {
+        loss_count: i32,
+    },
     /// Position flattened
     PositionFlattened {
         reason: String,
@@ -71,6 +75,7 @@ pub struct ExecutionEngine {
     position_manager: PositionManager,
     event_tx: broadcast::Sender<ExecutionEvent>,
     daily_loss_limit_hit: bool,
+    max_losses_hit: bool,
 }
 
 impl ExecutionEngine {
@@ -91,6 +96,7 @@ impl ExecutionEngine {
             position_manager,
             event_tx,
             daily_loss_limit_hit: false,
+            max_losses_hit: false,
         }
     }
 
@@ -111,6 +117,7 @@ impl ExecutionEngine {
             position_manager,
             event_tx,
             daily_loss_limit_hit: false,
+            max_losses_hit: false,
         }
     }
 
@@ -146,6 +153,11 @@ impl ExecutionEngine {
         // Check daily loss limit
         if self.daily_loss_limit_hit {
             bail!("Daily loss limit already reached, no new trades");
+        }
+
+        // Check max daily losses
+        if self.max_losses_hit {
+            bail!("Max daily losses ({}) reached, no new trades", self.config.max_daily_losses);
         }
 
         // Check if we're already at max position
@@ -369,8 +381,9 @@ impl ExecutionEngine {
         }
     }
 
-    /// Check if daily loss limit hit
+    /// Check if daily loss limit or max losses hit
     fn check_daily_limit(&mut self) {
+        // Check P&L limit
         let daily_pnl = self.position_manager.daily_pnl_points();
         if daily_pnl <= -self.config.daily_loss_limit {
             self.daily_loss_limit_hit = true;
@@ -383,11 +396,35 @@ impl ExecutionEngine {
                 pnl_points: daily_pnl,
             });
         }
+
+        // Check max losses
+        let loss_count = self.position_manager.daily_summary().losses;
+        if loss_count >= self.config.max_daily_losses {
+            self.max_losses_hit = true;
+            warn!(
+                "Max daily losses reached: {} losses (limit: {})",
+                loss_count, self.config.max_daily_losses
+            );
+
+            let _ = self.event_tx.send(ExecutionEvent::MaxLossesReached {
+                loss_count,
+            });
+        }
     }
 
     /// Check if daily loss limit has been hit
     pub fn is_daily_limit_hit(&self) -> bool {
         self.daily_loss_limit_hit
+    }
+
+    /// Check if max daily losses has been hit
+    pub fn is_max_losses_hit(&self) -> bool {
+        self.max_losses_hit
+    }
+
+    /// Check if trading is stopped (either limit hit)
+    pub fn is_trading_stopped(&self) -> bool {
+        self.daily_loss_limit_hit || self.max_losses_hit
     }
 
     /// Flatten all positions
@@ -446,6 +483,7 @@ impl ExecutionEngine {
     pub fn reset_daily(&mut self) {
         self.position_manager.reset_daily();
         self.daily_loss_limit_hit = false;
+        self.max_losses_hit = false;
         info!("Reset for new trading day");
     }
 
@@ -533,5 +571,45 @@ mod tests {
         // Should not be able to execute new signals
         let result = engine.execute_signal(&signal, 1).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_max_daily_losses() {
+        let config = ExecutionConfig {
+            mode: ExecutionMode::Simulation,
+            max_daily_losses: 3,
+            daily_loss_limit: 1000.0, // High limit so we hit loss count first
+            ..Default::default()
+        };
+
+        let mut engine = ExecutionEngine::with_balance(config, 50000.0);
+        engine.connect().await.unwrap();
+
+        let signal = TradingSignal {
+            side: OrderSide::Buy,
+            lvn_level: 21500.0,
+            current_price: 21505.0,
+            delta: 100.0,
+        };
+
+        // Take 3 small losses
+        for i in 0..3 {
+            let bracket_id = engine.execute_signal(&signal, 1).await.unwrap();
+            // Small 2 pt loss each time
+            engine.process_exit_fill(bracket_id, 21503.0, "STOP");
+
+            if i < 2 {
+                assert!(!engine.is_max_losses_hit(), "Should not be hit after {} losses", i + 1);
+            }
+        }
+
+        // After 3 losses, should be stopped
+        assert!(engine.is_max_losses_hit());
+        assert!(engine.is_trading_stopped());
+
+        // Should not be able to execute new signals
+        let result = engine.execute_signal(&signal, 1).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Max daily losses"));
     }
 }
