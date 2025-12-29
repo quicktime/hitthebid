@@ -46,6 +46,11 @@ impl Default for ApexParams {
 }
 
 /// Elite Trader Funding Static account parameters
+/// ALL Static accounts (10K, 25K, 50K) have SAME rules:
+/// - $2,000 max drawdown (static, never trails)
+/// - $4,000 profit target
+/// - Max 4 NQ / 40 MNQ contracts
+/// - No daily loss limit
 pub struct ETFStaticParams {
     pub starting_balance: f64,
     pub min_balance: f64,       // Static DD threshold (never moves)
@@ -54,31 +59,38 @@ pub struct ETFStaticParams {
 }
 
 impl ETFStaticParams {
-    pub fn new_100k() -> Self {
+    /// All static accounts have same DD ($2,000) and target ($4,000)
+    pub fn new_static() -> Self {
         Self {
-            starting_balance: 100000.0,
-            min_balance: 99375.0,    // $625 static DD
-            profit_target: 102000.0,  // $2,000 profit target
-            max_trades: 300,          // ~1 year of trading
-        }
-    }
-
-    pub fn new_25k() -> Self {
-        // 25K Static - proportional DD (~$156) and target (~$500)
-        Self {
-            starting_balance: 25000.0,
-            min_balance: 24844.0,    // ~$156 static DD (proportional)
-            profit_target: 25500.0,   // ~$500 profit target
+            starting_balance: 50000.0,  // Account size doesn't matter for DD/target
+            min_balance: 48000.0,       // $2,000 static DD
+            profit_target: 54000.0,     // $4,000 profit target
             max_trades: 300,
         }
     }
+}
 
-    pub fn new_10k() -> Self {
-        // 10K Static - proportional DD (~$62) and target (~$200)
+/// Elite Trader Funding EOD account parameters
+/// ALL EOD accounts (50K, 100K, 150K) have SAME rules:
+/// - $2,000 max drawdown (trails at EOD based on realized profit)
+/// - $3,000 profit target
+/// - $1,100 daily loss limit
+/// - Max 8 NQ / 80 MNQ contracts
+pub struct ETFEodParams {
+    pub starting_balance: f64,
+    pub max_drawdown: f64,      // EOD trailing DD amount
+    pub profit_target: f64,
+    pub daily_loss_limit: f64,
+    pub max_trades: usize,
+}
+
+impl ETFEodParams {
+    pub fn new_eod() -> Self {
         Self {
-            starting_balance: 10000.0,
-            min_balance: 9938.0,     // ~$62 static DD
-            profit_target: 10200.0,   // ~$200 profit target
+            starting_balance: 50000.0,
+            max_drawdown: 2000.0,       // $2,000 EOD trailing DD
+            profit_target: 53000.0,     // $3,000 profit target
+            daily_loss_limit: 1100.0,   // $1,100 daily loss limit
             max_trades: 300,
         }
     }
@@ -265,130 +277,205 @@ pub fn print_results(config: &StrategyConfig, results: &SimulationResults, num_s
     }
 }
 
-/// Run Monte Carlo for Elite Trader Funding Static accounts
+/// Run Monte Carlo simulation for ETF EOD (End of Day trailing) eval
+pub fn simulate_etf_eod(
+    config: &StrategyConfig,
+    params: &ETFEodParams,
+    num_simulations: usize,
+) -> SimulationResults {
+    let mut results = SimulationResults::default();
+    let mut rng = rand::thread_rng();
+
+    let win_dist = Normal::new(config.avg_win, config.win_std).unwrap();
+    let loss_dist = Normal::new(config.avg_loss, config.avg_loss * 0.3).unwrap();
+
+    for _ in 0..num_simulations {
+        let mut balance = params.starting_balance;
+        let mut dd_threshold = params.starting_balance - params.max_drawdown;
+        let mut trades = 0usize;
+        let mut min_buffer = params.max_drawdown;
+        let mut daily_pnl = 0.0f64;
+
+        loop {
+            trades += 1;
+
+            let trade_pnl = if rng.gen::<f64>() < config.win_rate {
+                // Winner
+                win_dist.sample(&mut rng).max(config.avg_win * 0.3)
+            } else {
+                // Loser
+                -loss_dist.sample(&mut rng).max(config.avg_loss * 0.5)
+            };
+
+            daily_pnl += trade_pnl;
+            balance += trade_pnl;
+
+            // Check daily loss limit (calculated from prior day's close, so from start of day)
+            if daily_pnl <= -params.daily_loss_limit {
+                results.failed_dd += 1;
+                break;
+            }
+
+            // At EOD, update trailing DD based on realized profit
+            // Simulate ~1 trade per day on average, so update DD after each trade
+            if balance > params.starting_balance {
+                let profit = balance - params.starting_balance;
+                dd_threshold = params.starting_balance + profit - params.max_drawdown;
+            }
+            daily_pnl = 0.0; // Reset for next "day"
+
+            let buffer = balance - dd_threshold;
+            min_buffer = min_buffer.min(buffer);
+
+            // Check if blown (EOD trailing DD)
+            if balance <= dd_threshold {
+                results.failed_dd += 1;
+                break;
+            }
+
+            // Check if passed
+            if balance >= params.profit_target {
+                results.passed += 1;
+                results.trades_to_pass.push(trades);
+                results.final_buffers.push(buffer);
+                results.min_buffers.push(min_buffer);
+                break;
+            }
+
+            // Max trades
+            if trades >= params.max_trades {
+                results.failed_max_trades += 1;
+                break;
+            }
+        }
+    }
+
+    results
+}
+
+/// Run Monte Carlo for Elite Trader Funding - comparing Static vs EOD accounts
 pub fn run_etf_monte_carlo() {
     const NUM_SIMULATIONS: usize = 100_000;
 
     println!("\n{}", "=".repeat(70));
-    println!("ELITE TRADER FUNDING - STATIC DD MONTE CARLO SIMULATION");
+    println!("ELITE TRADER FUNDING - STATIC vs EOD MONTE CARLO COMPARISON");
     println!("Simulations: {}", NUM_SIMULATIONS);
     println!("{}", "=".repeat(70));
 
-    // BALANCED CONFIG from backtest_results.md (Full Year):
-    // SL: 2.0 | TP: 30 | Trail: 6 | Delta: 60 | StopBuf: 1.5
-    // 230 trades, 40.9% WR, 71.3 pts avg win, 2.25 pts avg loss
-    // ~0.83 trades/day
-
     println!("\n{}", "-".repeat(70));
-    println!("BALANCED CONFIG (Full Year Backtest - 276 days):");
-    println!("  TP: 30 | Trail: 6 | Delta: 60 | StopBuf: 1.5 | LvlTol: 3");
+    println!("STRATEGY: LVN Retest (Full Year Backtest - 276 days)");
     println!("  55.4% WR, 52.77 pts avg win, 2.17 pts avg loss");
     println!("  ~0.84 trades/day (231 trades over 276 days)");
-    println!("  PF: 45.28, Total P&L: 7,483 pts ($150K/yr with 1 NQ)");
+    println!("  PF: 45.28");
     println!("{}", "-".repeat(70));
 
-    // ========== 100K STATIC ACCOUNT ==========
-    println!("\n{}", "=".repeat(70));
-    println!("100K STATIC ACCOUNT ($625 DD, $2,000 profit target)");
-    println!("{}", "=".repeat(70));
-
-    let etf_100k = ETFStaticParams::new_100k();
-
-    // 1 NQ = $20/point
-    // ACTUAL from backtest: 55.4% WR, 52.77 pts avg win, 2.17 pts avg loss
-    // Avg Win: 52.77 pts * $20 = $1,055
-    // Avg Loss: 2.17 pts * $20 = $43.40
-
+    // Strategy configs for different contract sizes
+    // Max 4 NQ for Static, Max 8 NQ for EOD
     let one_nq = StrategyConfig {
-        name: "1 NQ ($20/pt) - 55.4% WR, $1055 win, $43 loss".to_string(),
+        name: "1 NQ ($20/pt)".to_string(),
         win_rate: 0.554,
-        avg_win: 1055.00,
-        avg_loss: 43.40,
+        avg_win: 1055.40,   // 52.77 pts * $20
+        avg_loss: 43.40,    // 2.17 pts * $20
         peak_ratio: 1.0,
         win_std: 400.0,
     };
 
-    let one_nq_results = simulate_etf_static(&one_nq, &etf_100k, NUM_SIMULATIONS);
-    print_etf_results(&one_nq, &one_nq_results, NUM_SIMULATIONS);
-
-    // 2 NQ
     let two_nq = StrategyConfig {
-        name: "2 NQ ($40/pt) - 55.4% WR, $2110 win, $87 loss".to_string(),
+        name: "2 NQ ($40/pt)".to_string(),
         win_rate: 0.554,
-        avg_win: 2110.00,
+        avg_win: 2110.80,
         avg_loss: 86.80,
         peak_ratio: 1.0,
         win_std: 800.0,
     };
 
-    let two_nq_results = simulate_etf_static(&two_nq, &etf_100k, NUM_SIMULATIONS);
-    print_etf_results(&two_nq, &two_nq_results, NUM_SIMULATIONS);
-
-    // ========== 25K STATIC ACCOUNT ==========
-    println!("\n{}", "=".repeat(70));
-    println!("25K STATIC ACCOUNT (~$156 DD, ~$500 profit target)");
-    println!("{}", "=".repeat(70));
-
-    let etf_25k = ETFStaticParams::new_25k();
-
-    // 5 MNQ = $10/point
-    let five_mnq_25k = StrategyConfig {
-        name: "5 MNQ ($10/pt) - 55.4% WR, $528 win, $22 loss".to_string(),
+    let four_nq = StrategyConfig {
+        name: "4 NQ ($80/pt) - MAX for Static".to_string(),
         win_rate: 0.554,
-        avg_win: 527.70,
-        avg_loss: 21.70,
+        avg_win: 4221.60,
+        avg_loss: 173.60,
         peak_ratio: 1.0,
-        win_std: 200.0,
+        win_std: 1600.0,
     };
 
-    let five_mnq_25k_results = simulate_etf_static(&five_mnq_25k, &etf_25k, NUM_SIMULATIONS);
-    print_etf_results(&five_mnq_25k, &five_mnq_25k_results, NUM_SIMULATIONS);
-
-    // 3 MNQ - more conservative
-    let three_mnq_25k = StrategyConfig {
-        name: "3 MNQ ($6/pt) - 55.4% WR, $317 win, $13 loss".to_string(),
-        win_rate: 0.554,
-        avg_win: 316.62,
-        avg_loss: 13.02,
-        peak_ratio: 1.0,
-        win_std: 120.0,
-    };
-
-    let three_mnq_25k_results = simulate_etf_static(&three_mnq_25k, &etf_25k, NUM_SIMULATIONS);
-    print_etf_results(&three_mnq_25k, &three_mnq_25k_results, NUM_SIMULATIONS);
-
-    // ========== SUMMARY ==========
+    // ========== STATIC ACCOUNTS ==========
     println!("\n{}", "=".repeat(70));
-    println!("SUMMARY - ETF STATIC EVAL PASS RATES");
-    println!("(Balanced Config: 55.4% WR, 52.77 pts win, 2.17 pts loss)");
+    println!("STATIC ACCOUNTS (10K/25K/50K - all same rules)");
+    println!("  $2,000 DD (never trails) | $4,000 profit target");
+    println!("  No daily loss limit | Max 4 NQ / 40 MNQ");
+    println!("  Cost: ~$46 (on sale)");
     println!("{}", "=".repeat(70));
 
-    println!("\n  {:25} {:>10} {:>12} {:>12}", "Account / Contracts", "Pass Rate", "Avg Trades", "Est. Days");
-    println!("  {}", "-".repeat(62));
+    let static_params = ETFStaticParams::new_static();
 
-    let all_results = [
-        ("100K / 1 NQ", &one_nq_results),
-        ("100K / 2 NQ", &two_nq_results),
-        ("25K / 5 MNQ", &five_mnq_25k_results),
-        ("25K / 3 MNQ", &three_mnq_25k_results),
+    let static_1nq = simulate_etf_static(&one_nq, &static_params, NUM_SIMULATIONS);
+    print_etf_results(&one_nq, &static_1nq, NUM_SIMULATIONS);
+
+    let static_2nq = simulate_etf_static(&two_nq, &static_params, NUM_SIMULATIONS);
+    print_etf_results(&two_nq, &static_2nq, NUM_SIMULATIONS);
+
+    let static_4nq = simulate_etf_static(&four_nq, &static_params, NUM_SIMULATIONS);
+    print_etf_results(&four_nq, &static_4nq, NUM_SIMULATIONS);
+
+    // ========== EOD ACCOUNTS ==========
+    println!("\n{}", "=".repeat(70));
+    println!("EOD ACCOUNTS (50K/100K/150K - all same rules)");
+    println!("  $2,000 DD (trails at EOD) | $3,000 profit target");
+    println!("  $1,100 daily loss limit | Max 8 NQ / 80 MNQ");
+    println!("  Cost: ~$69 (on sale)");
+    println!("{}", "=".repeat(70));
+
+    let eod_params = ETFEodParams::new_eod();
+
+    let eod_1nq = simulate_etf_eod(&one_nq, &eod_params, NUM_SIMULATIONS);
+    print_etf_results(&one_nq, &eod_1nq, NUM_SIMULATIONS);
+
+    let eod_2nq = simulate_etf_eod(&two_nq, &eod_params, NUM_SIMULATIONS);
+    print_etf_results(&two_nq, &eod_2nq, NUM_SIMULATIONS);
+
+    let eod_4nq = simulate_etf_eod(&four_nq, &eod_params, NUM_SIMULATIONS);
+    print_etf_results(&four_nq, &eod_4nq, NUM_SIMULATIONS);
+
+    // ========== COMPARISON SUMMARY ==========
+    println!("\n{}", "=".repeat(70));
+    println!("COMPARISON: STATIC vs EOD");
+    println!("{}", "=".repeat(70));
+
+    println!("\n  {:30} {:>12} {:>12} {:>10}", "Account Type / Contracts", "Pass Rate", "Avg Trades", "Est Days");
+    println!("  {}", "-".repeat(68));
+
+    let comparisons = [
+        ("STATIC / 1 NQ", &static_1nq),
+        ("STATIC / 2 NQ", &static_2nq),
+        ("STATIC / 4 NQ (max)", &static_4nq),
+        ("EOD / 1 NQ", &eod_1nq),
+        ("EOD / 2 NQ", &eod_2nq),
+        ("EOD / 4 NQ", &eod_4nq),
     ];
 
-    for (name, results) in all_results.iter() {
+    for (name, results) in comparisons.iter() {
         let pass_rate = results.passed as f64 / NUM_SIMULATIONS as f64 * 100.0;
         if !results.trades_to_pass.is_empty() {
             let avg_trades: f64 = results.trades_to_pass.iter().map(|&x| x as f64).sum::<f64>()
                 / results.trades_to_pass.len() as f64;
-            let est_days = avg_trades / 0.84;  // 231 trades / 276 days = 0.84 trades/day
-            println!("  {:25} {:>9.2}% {:>12.1} {:>12.0}", name, pass_rate, avg_trades, est_days);
+            let est_days = (avg_trades / 0.84).ceil();
+            println!("  {:30} {:>11.2}% {:>12.1} {:>10.0}", name, pass_rate, avg_trades, est_days);
         } else {
-            println!("  {:25} {:>9.2}% {:>12} {:>12}", name, pass_rate, "N/A", "N/A");
+            println!("  {:30} {:>11.2}% {:>12} {:>10}", name, pass_rate, "N/A", "N/A");
         }
     }
 
     println!("\n{}", "-".repeat(70));
-    println!("RECOMMENDATION:");
-    println!("  100K Static + 1 NQ = best balance of speed and safety");
-    println!("  ~6 days to pass, 99.9%+ success rate");
+    println!("KEY DIFFERENCES:");
+    println!("  STATIC: Higher target ($4K vs $3K) but DD never trails");
+    println!("  EOD:    Lower target ($3K) but DD trails + $1,100 daily limit");
+    println!();
+    println!("RECOMMENDATION for LVN Retest strategy:");
+    println!("  STATIC is BETTER because:");
+    println!("    1. No daily loss limit (EOD's $1,100 limit is risky)");
+    println!("    2. DD never trails (our trailing stops cause unrealized peaks)");
+    println!("    3. Cheaper ($46 vs $69)");
+    println!("    4. Extra $1K target is ~1 extra win with 1 NQ");
     println!("{}", "-".repeat(70));
 }
 
