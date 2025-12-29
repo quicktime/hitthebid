@@ -12,6 +12,7 @@ mod precompute;
 mod lvn_retest;
 mod paper_trading;
 mod monte_carlo;
+mod live_trading;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -394,6 +395,73 @@ enum Commands {
         #[arg(short, long, default_value = "100000")]
         simulations: usize,
     },
+
+    /// Automated trading with Rithmic API (paper or live)
+    Trade {
+        /// Trading mode: simulation, paper, or live
+        #[arg(long, default_value = "simulation")]
+        mode: String,
+
+        /// Number of contracts to trade
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Daily loss limit in points (stops trading when reached)
+        #[arg(long, default_value = "100")]
+        daily_loss_limit: f64,
+
+        /// Take profit in points (set high to let trailing stop work)
+        #[arg(long, default_value = "500")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Cache directory for precomputed data (for replay mode)
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format) for replay
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Max LVN volume ratio (quality filter)
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3")]
+        level_tolerance: f64,
+
+        /// Starting balance for prop firm tracking
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+    },
 }
 
 #[tokio::main]
@@ -505,6 +573,23 @@ async fn main() -> Result<()> {
         }
         Commands::MonteCarloEtf { simulations: _ } => {
             monte_carlo::run_etf_monte_carlo();
+        }
+        Commands::Trade {
+            mode, contracts, daily_loss_limit,
+            take_profit, trailing_stop, stop_buffer,
+            cache_dir, date,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance,
+        } => {
+            run_trade(
+                mode, contracts, daily_loss_limit,
+                take_profit, trailing_stop, stop_buffer,
+                cache_dir, date,
+                start_hour, start_minute, end_hour, end_minute,
+                min_delta, max_lvn_ratio, level_tolerance,
+                starting_balance,
+            ).await?;
         }
     }
 
@@ -1324,4 +1409,43 @@ fn run_paper_trade(
     info!("Paper trading validation complete!");
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_trade(
+    mode: String,
+    contracts: i32,
+    daily_loss_limit: f64,
+    take_profit: f64,
+    trailing_stop: f64,
+    stop_buffer: f64,
+    cache_dir: PathBuf,
+    date: Option<String>,
+    start_hour: u32,
+    start_minute: u32,
+    end_hour: u32,
+    end_minute: u32,
+    min_delta: i64,
+    max_lvn_ratio: f64,
+    level_tolerance: f64,
+    starting_balance: f64,
+) -> Result<()> {
+    live_trading::run_trading(
+        mode,
+        contracts,
+        daily_loss_limit,
+        take_profit,
+        trailing_stop,
+        stop_buffer,
+        cache_dir,
+        date,
+        start_hour,
+        start_minute,
+        end_hour,
+        end_minute,
+        min_delta,
+        max_lvn_ratio,
+        level_tolerance,
+        starting_balance,
+    ).await
 }

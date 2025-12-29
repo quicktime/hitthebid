@@ -59,12 +59,32 @@ pub struct ETFStaticParams {
 }
 
 impl ETFStaticParams {
-    /// All static accounts have same DD ($2,000) and target ($4,000)
-    pub fn new_static() -> Self {
+    /// ETF Static: All sizes have same DD ($2,000) and target ($4,000)
+    pub fn new_etf_static() -> Self {
         Self {
-            starting_balance: 50000.0,  // Account size doesn't matter for DD/target
+            starting_balance: 50000.0,
             min_balance: 48000.0,       // $2,000 static DD
             profit_target: 54000.0,     // $4,000 profit target
+            max_trades: 300,
+        }
+    }
+
+    /// MFF 30K Static Pro: $2,500 DD, $4,200 target
+    pub fn new_mff_static_pro() -> Self {
+        Self {
+            starting_balance: 30000.0,
+            min_balance: 27500.0,       // $2,500 static DD
+            profit_target: 34200.0,     // $4,200 profit target
+            max_trades: 300,
+        }
+    }
+
+    /// MFF 30K Static Standard: $1,500 DD, $2,500 target
+    pub fn new_mff_static_standard() -> Self {
+        Self {
+            starting_balance: 30000.0,
+            min_balance: 28500.0,       // $1,500 static DD
+            profit_target: 32500.0,     // $2,500 profit target
             max_trades: 300,
         }
     }
@@ -406,7 +426,7 @@ pub fn run_etf_monte_carlo() {
     println!("  Cost: ~$46 (on sale)");
     println!("{}", "=".repeat(70));
 
-    let static_params = ETFStaticParams::new_static();
+    let static_params = ETFStaticParams::new_etf_static();
 
     let static_1nq = simulate_etf_static(&one_nq, &static_params, NUM_SIMULATIONS);
     print_etf_results(&one_nq, &static_1nq, NUM_SIMULATIONS);
@@ -436,21 +456,52 @@ pub fn run_etf_monte_carlo() {
     let eod_4nq = simulate_etf_eod(&four_nq, &eod_params, NUM_SIMULATIONS);
     print_etf_results(&four_nq, &eod_4nq, NUM_SIMULATIONS);
 
-    // ========== COMPARISON SUMMARY ==========
+    // ========== MFF 30K STATIC ACCOUNTS ==========
     println!("\n{}", "=".repeat(70));
-    println!("COMPARISON: STATIC vs EOD");
+    println!("MYFUNDEDFUTURES 30K STATIC (Bot-Friendly!)");
+    println!("  Bots explicitly allowed (July 2025 policy)");
+    println!("  No activation fee | No consistency rule");
     println!("{}", "=".repeat(70));
 
-    println!("\n  {:30} {:>12} {:>12} {:>10}", "Account Type / Contracts", "Pass Rate", "Avg Trades", "Est Days");
-    println!("  {}", "-".repeat(68));
+    // MFF 30K Static Pro: $2,500 DD, $4,200 target, max 2 NQ
+    println!("\n--- 30K Static Pro ($2,500 DD, $4,200 target) ---");
+    let mff_pro = ETFStaticParams::new_mff_static_pro();
+
+    // Max 2 NQ for MFF 30K
+    let mff_1nq = simulate_etf_static(&one_nq, &mff_pro, NUM_SIMULATIONS);
+    print_etf_results(&one_nq, &mff_1nq, NUM_SIMULATIONS);
+
+    let mff_2nq = simulate_etf_static(&two_nq, &mff_pro, NUM_SIMULATIONS);
+    print_etf_results(&two_nq, &mff_2nq, NUM_SIMULATIONS);
+
+    // MFF 30K Static Standard: $1,500 DD, $2,500 target
+    println!("\n--- 30K Static Standard ($1,500 DD, $2,500 target) ---");
+    let mff_std = ETFStaticParams::new_mff_static_standard();
+
+    let mff_std_1nq = simulate_etf_static(&one_nq, &mff_std, NUM_SIMULATIONS);
+    print_etf_results(&one_nq, &mff_std_1nq, NUM_SIMULATIONS);
+
+    let mff_std_2nq = simulate_etf_static(&two_nq, &mff_std, NUM_SIMULATIONS);
+    print_etf_results(&two_nq, &mff_std_2nq, NUM_SIMULATIONS);
+
+    // ========== COMPARISON SUMMARY ==========
+    println!("\n{}", "=".repeat(70));
+    println!("FULL COMPARISON: ETF vs MFF");
+    println!("{}", "=".repeat(70));
+
+    println!("\n  {:35} {:>12} {:>12} {:>10}", "Account / Contracts", "Pass Rate", "Avg Trades", "Est Days");
+    println!("  {}", "-".repeat(73));
 
     let comparisons = [
-        ("STATIC / 1 NQ", &static_1nq),
-        ("STATIC / 2 NQ", &static_2nq),
-        ("STATIC / 4 NQ (max)", &static_4nq),
-        ("EOD / 1 NQ", &eod_1nq),
-        ("EOD / 2 NQ", &eod_2nq),
-        ("EOD / 4 NQ", &eod_4nq),
+        ("ETF Static / 1 NQ", &static_1nq),
+        ("ETF Static / 2 NQ", &static_2nq),
+        ("ETF Static / 4 NQ (max)", &static_4nq),
+        ("ETF EOD / 1 NQ", &eod_1nq),
+        ("ETF EOD / 2 NQ", &eod_2nq),
+        ("MFF Static Pro / 1 NQ", &mff_1nq),
+        ("MFF Static Pro / 2 NQ (max)", &mff_2nq),
+        ("MFF Static Std / 1 NQ", &mff_std_1nq),
+        ("MFF Static Std / 2 NQ (max)", &mff_std_2nq),
     ];
 
     for (name, results) in comparisons.iter() {
@@ -459,23 +510,24 @@ pub fn run_etf_monte_carlo() {
             let avg_trades: f64 = results.trades_to_pass.iter().map(|&x| x as f64).sum::<f64>()
                 / results.trades_to_pass.len() as f64;
             let est_days = (avg_trades / 0.84).ceil();
-            println!("  {:30} {:>11.2}% {:>12.1} {:>10.0}", name, pass_rate, avg_trades, est_days);
+            println!("  {:35} {:>11.2}% {:>12.1} {:>10.0}", name, pass_rate, avg_trades, est_days);
         } else {
-            println!("  {:30} {:>11.2}% {:>12} {:>10}", name, pass_rate, "N/A", "N/A");
+            println!("  {:35} {:>11.2}% {:>12} {:>10}", name, pass_rate, "N/A", "N/A");
         }
     }
 
     println!("\n{}", "-".repeat(70));
     println!("KEY DIFFERENCES:");
-    println!("  STATIC: Higher target ($4K vs $3K) but DD never trails");
-    println!("  EOD:    Lower target ($3K) but DD trails + $1,100 daily limit");
+    println!("  ETF Static:     $2K DD, $4K target, needs bot approval");
+    println!("  ETF EOD:        $2K DD, $3K target, $1.1K daily limit");
+    println!("  MFF Static Pro: $2.5K DD, $4.2K target, BOTS ALLOWED");
+    println!("  MFF Static Std: $1.5K DD, $2.5K target, BOTS ALLOWED");
     println!();
-    println!("RECOMMENDATION for LVN Retest strategy:");
-    println!("  STATIC is BETTER because:");
-    println!("    1. No daily loss limit (EOD's $1,100 limit is risky)");
-    println!("    2. DD never trails (our trailing stops cause unrealized peaks)");
-    println!("    3. Cheaper ($46 vs $69)");
-    println!("    4. Extra $1K target is ~1 extra win with 1 NQ");
+    println!("RECOMMENDATION for automated LVN Retest strategy:");
+    println!("  MFF Static Pro + 2 NQ = BEST for bots");
+    println!("    - Bots explicitly allowed (no approval needed)");
+    println!("    - Higher DD ($2.5K vs $2K)");
+    println!("    - No activation fee, no consistency rule");
     println!("{}", "-".repeat(70));
 }
 
