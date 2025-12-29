@@ -67,10 +67,29 @@ pub async fn run_replay(
     println!();
     println!("Profit Factor:     {:.2}", summary.profit_factor);
     println!("Sharpe Ratio:      {:.2}", summary.sharpe_ratio);
-    println!("Total P&L:         {:+.2} pts", summary.total_pnl);
     println!("Avg Win:           {:.2} pts", summary.avg_win);
     println!("Avg Loss:          {:.2} pts", summary.avg_loss);
     println!();
+
+    // Show P&L breakdown if costs are applied
+    if summary.total_slippage > 0.0 || summary.total_commission > 0.0 {
+        println!("─── P&L Breakdown ───");
+        println!("Gross P&L:         {:+.2} pts (${:+.2})",
+            summary.gross_pnl,
+            summary.gross_pnl * config.point_value * config.contracts as f64);
+        println!("Slippage:          -{:.2} pts (${:.2})",
+            summary.total_slippage,
+            summary.total_slippage * config.point_value * config.contracts as f64);
+        println!("Commission:        ${:.2}", summary.total_commission);
+        println!("Net P&L:           {:+.2} pts (${:+.2})",
+            summary.net_pnl,
+            summary.net_pnl * config.point_value * config.contracts as f64 - summary.total_commission);
+        println!();
+    } else {
+        println!("Total P&L:         {:+.2} pts", summary.net_pnl);
+        println!();
+    }
+
     println!("Final Balance:     ${:.2}", summary.final_balance);
     println!("Max Drawdown:      ${:.2}", summary.max_drawdown);
 

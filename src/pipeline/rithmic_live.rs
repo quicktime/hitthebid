@@ -61,6 +61,10 @@ pub struct LiveConfig {
     pub daily_loss_limit: f64,
     /// Point value (NQ = $20)
     pub point_value: f64,
+    /// Slippage per trade in points (applied to entry and exit)
+    pub slippage: f64,
+    /// Commission per round-trip in dollars
+    pub commission: f64,
 }
 
 impl LiveConfig {
@@ -236,6 +240,8 @@ pub struct LiveTrader {
     gross_profit: f64,  // Sum of winning trade P&L (points)
     gross_loss: f64,    // Sum of losing trade P&L (points, positive value)
     trade_pnls: Vec<f64>, // Individual trade P&Ls for Sharpe calculation
+    total_commission: f64, // Total commission paid
+    total_slippage: f64,   // Total slippage cost in points
 
     // State
     is_trading_hours: bool,
@@ -273,6 +279,8 @@ impl LiveTrader {
             gross_profit: 0.0,
             gross_loss: 0.0,
             trade_pnls: Vec::new(),
+            total_commission: 0.0,
+            total_slippage: 0.0,
             is_trading_hours: false,
             daily_stopped: false,
             bar_count: 0,
@@ -471,12 +479,23 @@ impl LiveTrader {
             }
 
             if should_exit {
-                let pnl_points = match pos.direction {
+                // Calculate gross P&L (before costs)
+                let gross_pnl_points = match pos.direction {
                     Direction::Long => exit_price - pos.entry_price,
                     Direction::Short => pos.entry_price - exit_price,
                 };
 
-                let pnl_dollars = pnl_points * self.config.point_value * self.config.contracts as f64;
+                // Apply slippage (affects both entry and exit)
+                let slippage_cost = self.config.slippage * 2.0; // Entry + exit slippage
+                let pnl_points = gross_pnl_points - slippage_cost;
+                self.total_slippage += slippage_cost;
+
+                // Calculate dollar P&L and apply commission
+                let gross_pnl_dollars = pnl_points * self.config.point_value * self.config.contracts as f64;
+                let commission = self.config.commission * self.config.contracts as f64;
+                let pnl_dollars = gross_pnl_dollars - commission;
+                self.total_commission += commission;
+
                 self.daily_pnl += pnl_points;
                 self.running_balance += pnl_dollars;
                 self.total_trades += 1;
@@ -602,10 +621,12 @@ impl LiveTrader {
 
         let win_rate = if total > 0 { wins as f64 / total as f64 * 100.0 } else { 0.0 };
 
-        // Total P&L is gross_profit - gross_loss
-        let total_pnl = self.gross_profit - self.gross_loss;
+        // Net P&L has slippage already subtracted (from trade_pnls)
+        let net_pnl = self.gross_profit - self.gross_loss;
+        // Gross P&L = net + slippage we paid
+        let gross_pnl = net_pnl + self.total_slippage;
 
-        // Profit factor from tracked values
+        // Profit factor from tracked values (based on net P&L per trade)
         let profit_factor = if self.gross_loss > 0.0 {
             self.gross_profit / self.gross_loss
         } else if self.gross_profit > 0.0 {
@@ -633,9 +654,9 @@ impl LiveTrader {
             self.days_stopped_early
         };
 
-        // Calculate Sharpe ratio (annualized)
+        // Calculate Sharpe ratio (annualized) - based on net P&L per trade
         let sharpe_ratio = if total > 1 && !self.trade_pnls.is_empty() {
-            let mean_return = total_pnl / total as f64;
+            let mean_return = net_pnl / total as f64;
             let variance: f64 = self.trade_pnls.iter()
                 .map(|r| (r - mean_return).powi(2))
                 .sum::<f64>() / total as f64;
@@ -656,7 +677,10 @@ impl LiveTrader {
             breakevens,
             win_rate,
             profit_factor,
-            total_pnl,
+            gross_pnl,
+            total_slippage: self.total_slippage,
+            total_commission: self.total_commission,
+            net_pnl,
             avg_win,
             avg_loss,
             max_drawdown: self.max_drawdown,
@@ -677,7 +701,10 @@ pub struct TradingSummary {
     pub breakevens: u32,
     pub win_rate: f64,
     pub profit_factor: f64,
-    pub total_pnl: f64,
+    pub gross_pnl: f64,      // P&L before costs
+    pub total_slippage: f64, // Total slippage cost (points)
+    pub total_commission: f64, // Total commission cost (dollars)
+    pub net_pnl: f64,        // P&L after costs
     pub avg_win: f64,
     pub avg_loss: f64,
     pub max_drawdown: f64,

@@ -530,6 +530,14 @@ enum Commands {
         /// Max losing trades per day (0 = disabled)
         #[arg(long, default_value = "0")]
         max_daily_losses: i32,
+
+        /// Slippage per trade in points (applied to both entry and exit)
+        #[arg(long, default_value = "0.0")]
+        slippage: f64,
+
+        /// Commission per round-trip in dollars
+        #[arg(long, default_value = "0.0")]
+        commission: f64,
     },
 
     /// Live trading via Rithmic (paper or live mode)
@@ -605,6 +613,14 @@ enum Commands {
         /// Daily loss limit in points
         #[arg(long, default_value = "100")]
         daily_loss_limit: f64,
+
+        /// Slippage per trade in points (for cost estimation)
+        #[arg(long, default_value = "0.0")]
+        slippage: f64,
+
+        /// Commission per round-trip in dollars
+        #[arg(long, default_value = "0.0")]
+        commission: f64,
     },
 }
 
@@ -741,6 +757,7 @@ async fn main() -> Result<()> {
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses,
+            slippage, commission,
         } => {
             // Use same LiveConfig as live trading - validates exact same code path
             let config = rithmic_live::LiveConfig {
@@ -762,6 +779,8 @@ async fn main() -> Result<()> {
                 max_daily_losses,
                 daily_loss_limit: 1000.0, // High limit for replay
                 point_value: 20.0,
+                slippage,
+                commission,
             };
 
             replay_trading::run_replay(cache_dir, date, config).await?;
@@ -772,6 +791,7 @@ async fn main() -> Result<()> {
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses, daily_loss_limit,
+            slippage, commission,
         } => {
             let paper_mode = mode.to_lowercase() != "live";
 
@@ -807,6 +827,8 @@ async fn main() -> Result<()> {
                 max_daily_losses,
                 daily_loss_limit,
                 point_value: 20.0, // NQ point value
+                slippage,
+                commission,
             };
 
             rithmic_live::run_live(config, paper_mode).await?;
