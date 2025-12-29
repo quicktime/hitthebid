@@ -387,15 +387,17 @@ impl LvnSignalGenerator {
 
     /// Check if bar is during configured trading hours
     fn is_trading_hours(&self, bar: &Bar) -> bool {
-        let hour = bar.timestamp.hour();
-        let minute = bar.timestamp.minute();
+        // Use proper timezone conversion (handles DST correctly)
+        use chrono_tz::America::New_York;
+        let et_time = bar.timestamp.with_timezone(&New_York);
+        let hour = et_time.hour();
+        let minute = et_time.minute();
         let time_mins = hour * 60 + minute;
 
-        // Convert ET to UTC (add 5 hours)
-        let start_utc = (self.config.trade_start_hour + 5) * 60 + self.config.trade_start_minute;
-        let end_utc = (self.config.trade_end_hour + 5) * 60 + self.config.trade_end_minute;
+        let start_mins = self.config.trade_start_hour * 60 + self.config.trade_start_minute;
+        let end_mins = self.config.trade_end_hour * 60 + self.config.trade_end_minute;
 
-        time_mins >= start_utc && time_mins < end_utc
+        time_mins >= start_mins && time_mins < end_mins
     }
 
     /// Get the current config
@@ -849,15 +851,17 @@ impl LvnRetestBacktester {
 
     /// Check if bar is during configured trading hours
     fn is_trading_hours(&self, bar: &Bar) -> bool {
-        let hour = bar.timestamp.hour();
-        let minute = bar.timestamp.minute();
+        // Use proper timezone conversion (handles DST correctly)
+        use chrono_tz::America::New_York;
+        let et_time = bar.timestamp.with_timezone(&New_York);
+        let hour = et_time.hour();
+        let minute = et_time.minute();
         let time_mins = hour * 60 + minute;
 
-        // Convert ET to UTC (add 5 hours)
-        let start_utc = (self.config.trade_start_hour + 5) * 60 + self.config.trade_start_minute;
-        let end_utc = (self.config.trade_end_hour + 5) * 60 + self.config.trade_end_minute;
+        let start_mins = self.config.trade_start_hour * 60 + self.config.trade_start_minute;
+        let end_mins = self.config.trade_end_hour * 60 + self.config.trade_end_minute;
 
-        time_mins >= start_utc && time_mins < end_utc
+        time_mins >= start_mins && time_mins < end_mins
     }
 
     /// Calculate final results

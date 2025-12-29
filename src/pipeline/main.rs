@@ -742,34 +742,26 @@ async fn main() -> Result<()> {
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses,
         } => {
-            let lvn_config = lvn_retest::LvnRetestConfig {
-                level_tolerance,
-                retest_distance: 8.0,
-                min_delta_for_absorption: min_delta,
-                max_range_for_absorption: 1.5,
-                stop_loss: stop_buffer,
+            // Use same LiveConfig as live trading - validates exact same code path
+            let config = rithmic_live::LiveConfig {
+                symbol: "NQ".to_string(),  // Not used in replay
+                exchange: "CME".to_string(), // Not used in replay
+                contracts,
+                cache_dir: cache_dir.clone(),
                 take_profit,
                 trailing_stop,
-                max_hold_bars: 300,
-                rth_only: true,
-                cooldown_bars: 60,
-                level_cooldown_bars: 600,
-                max_lvn_volume_ratio: max_lvn_ratio,
-                same_day_only: false,
-                min_absorption_bars: 1,
-                structure_stop_buffer: stop_buffer,
-                trade_start_hour: start_hour,
-                trade_start_minute: start_minute,
-                trade_end_hour: end_hour,
-                trade_end_minute: end_minute,
-            };
-
-            let config = replay_trading::ReplayConfig {
-                lvn_config,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
                 starting_balance,
-                contracts,
-                point_value: 20.0,
                 max_daily_losses,
+                daily_loss_limit: 1000.0, // High limit for replay
+                point_value: 20.0,
             };
 
             replay_trading::run_replay(cache_dir, date, config).await?;

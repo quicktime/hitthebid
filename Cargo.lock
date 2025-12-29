@@ -1774,6 +1774,7 @@ dependencies = [
  "arrow",
  "axum",
  "chrono",
+ "chrono-tz",
  "clap",
  "csv",
  "databento",

@@ -214,7 +214,7 @@ struct OpenPosition {
     bar_count: usize,
 }
 
-/// Live trading state
+/// Live trading state - used for both live trading and replay testing
 pub struct LiveTrader {
     config: LiveConfig,
     lvn_config: LvnRetestConfig,
@@ -229,12 +229,23 @@ pub struct LiveTrader {
     total_trades: i32,
     wins: i32,
     losses: i32,
+    breakevens: i32,
     running_balance: f64,
+    peak_balance: f64,
+    max_drawdown: f64,
+    gross_profit: f64,  // Sum of winning trade P&L (points)
+    gross_loss: f64,    // Sum of losing trade P&L (points, positive value)
+    trade_pnls: Vec<f64>, // Individual trade P&Ls for Sharpe calculation
 
     // State
     is_trading_hours: bool,
     daily_stopped: bool,
     bar_count: usize,
+
+    // Date tracking for daily resets
+    current_date: Option<chrono::NaiveDate>,
+    days_stopped_early: u32,
+    signals_skipped: u32,
 }
 
 impl LiveTrader {
@@ -255,11 +266,25 @@ impl LiveTrader {
             total_trades: 0,
             wins: 0,
             losses: 0,
+            breakevens: 0,
             running_balance: starting_balance,
+            peak_balance: starting_balance,
+            max_drawdown: 0.0,
+            gross_profit: 0.0,
+            gross_loss: 0.0,
+            trade_pnls: Vec::new(),
             is_trading_hours: false,
             daily_stopped: false,
             bar_count: 0,
+            current_date: None,
+            days_stopped_early: 0,
+            signals_skipped: 0,
         }
+    }
+
+    /// Add LVN levels directly (for replay mode)
+    pub fn add_lvn_levels(&mut self, levels: &[crate::lvn::LvnLevel]) {
+        self.signal_gen.add_lvn_levels(levels);
     }
 
     /// Load LVN levels from cache
@@ -273,11 +298,13 @@ impl LiveTrader {
         Ok(total_levels)
     }
 
-    /// Check if current time is within trading hours
-    fn check_trading_hours(&mut self) {
-        let now = Local::now();
-        let hour = now.hour();
-        let minute = now.minute();
+    /// Check if timestamp is within trading hours (uses bar timestamp for replay, wall clock for live)
+    fn check_trading_hours_for_bar(&mut self, bar: &Bar) {
+        // Use Eastern Time for trading hours check
+        use chrono_tz::America::New_York;
+        let et_time = bar.timestamp.with_timezone(&New_York);
+        let hour = et_time.hour();
+        let minute = et_time.minute();
 
         let start = self.lvn_config.trade_start_hour * 60
             + self.lvn_config.trade_start_minute;
@@ -288,10 +315,29 @@ impl LiveTrader {
         self.is_trading_hours = current >= start && current < end;
     }
 
+    /// Check for new day and reset daily counters
+    fn check_date_change(&mut self, bar: &Bar) {
+        let bar_date = bar.timestamp.date_naive();
+
+        if self.current_date != Some(bar_date) {
+            // Count the stopped day before resetting
+            if self.daily_stopped {
+                self.days_stopped_early += 1;
+            }
+
+            // Reset for new day
+            self.current_date = Some(bar_date);
+            self.daily_losses = 0;
+            self.daily_pnl = 0.0;
+            self.daily_stopped = false;
+        }
+    }
+
     /// Process a completed bar
     pub fn process_bar(&mut self, bar: &Bar) -> Option<TradeAction> {
         self.bar_count += 1;
-        self.check_trading_hours();
+        self.check_date_change(bar);
+        self.check_trading_hours_for_bar(bar);
 
         // Check if we should stop for the day
         if self.daily_stopped {
@@ -307,8 +353,13 @@ impl LiveTrader {
 
         // Step 1: If we have a pending signal, enter now
         if let Some(signal) = self.pending_signal.take() {
-            if self.daily_stopped || !self.is_trading_hours {
-                info!("Skipping signal - not trading hours or stopped");
+            if self.daily_stopped {
+                self.signals_skipped += 1;
+                info!("SKIPPED: {:?} signal (max daily losses reached)", signal.direction);
+                return None;
+            }
+            if !self.is_trading_hours {
+                info!("Skipping signal - not trading hours");
                 return None;
             }
 
@@ -429,9 +480,20 @@ impl LiveTrader {
                 self.daily_pnl += pnl_points;
                 self.running_balance += pnl_dollars;
                 self.total_trades += 1;
+                self.trade_pnls.push(pnl_points);
+
+                // Update peak balance and max drawdown
+                if self.running_balance > self.peak_balance {
+                    self.peak_balance = self.running_balance;
+                }
+                let drawdown = self.peak_balance - self.running_balance;
+                if drawdown > self.max_drawdown {
+                    self.max_drawdown = drawdown;
+                }
 
                 if pnl_points > 0.5 {
                     self.wins += 1;
+                    self.gross_profit += pnl_points;
                     info!(
                         "EXIT {}: {:?} @ {:.2} | P&L: +{:.2} pts (${:+.2}) | WIN",
                         exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars
@@ -439,6 +501,7 @@ impl LiveTrader {
                 } else if pnl_points < -0.5 {
                     self.losses += 1;
                     self.daily_losses += 1;
+                    self.gross_loss += pnl_points.abs();
                     info!(
                         "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts (${:.2}) | LOSS",
                         exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars
@@ -452,6 +515,7 @@ impl LiveTrader {
                         self.daily_stopped = true;
                     }
                 } else {
+                    self.breakevens += 1;
                     info!(
                         "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts | BREAKEVEN",
                         exit_reason, pos.direction, exit_price, pnl_points
@@ -475,20 +539,24 @@ impl LiveTrader {
             });
         }
 
-        // Step 3: Check for new signal (only if flat and trading hours)
-        if self.open_position.is_none()
+        // Step 3: ALWAYS process bar through signal generator to update level states
+        // This is critical - level states need to track price movement even during positions
+        let signal = self.signal_gen.process_bar(bar);
+
+        // Only act on signal if we're flat and conditions are met
+        if signal.is_some()
+            && self.open_position.is_none()
             && self.pending_signal.is_none()
             && self.is_trading_hours
             && !self.daily_stopped
         {
-            if let Some(signal) = self.signal_gen.process_bar(bar) {
-                info!(
-                    "SIGNAL: {:?} @ {:.2} | Level: {:.2} | Delta: {}",
-                    signal.direction, signal.price, signal.level_price, signal.delta
-                );
-                self.pending_signal = Some(signal);
-                return Some(TradeAction::SignalPending);
-            }
+            let signal = signal.unwrap();
+            info!(
+                "SIGNAL: {:?} @ {:.2} | Level: {:.2} | Delta: {}",
+                signal.direction, signal.price, signal.level_price, signal.delta
+            );
+            self.pending_signal = Some(signal);
+            return Some(TradeAction::SignalPending);
         }
 
         None
@@ -524,6 +592,99 @@ impl LiveTrader {
     pub fn is_flat(&self) -> bool {
         self.open_position.is_none() && self.pending_signal.is_none()
     }
+
+    /// Get full summary for replay results
+    pub fn summary(&self) -> TradingSummary {
+        let total = self.total_trades as u32;
+        let wins = self.wins as u32;
+        let losses = self.losses as u32;
+        let breakevens = self.breakevens as u32;
+
+        let win_rate = if total > 0 { wins as f64 / total as f64 * 100.0 } else { 0.0 };
+
+        // Total P&L is gross_profit - gross_loss
+        let total_pnl = self.gross_profit - self.gross_loss;
+
+        // Profit factor from tracked values
+        let profit_factor = if self.gross_loss > 0.0 {
+            self.gross_profit / self.gross_loss
+        } else if self.gross_profit > 0.0 {
+            f64::INFINITY
+        } else {
+            0.0
+        };
+
+        let avg_win = if wins > 0 {
+            self.gross_profit / wins as f64
+        } else {
+            0.0
+        };
+
+        let avg_loss = if losses > 0 {
+            -(self.gross_loss / losses as f64)
+        } else {
+            0.0
+        };
+
+        // Count final day if stopped
+        let days_stopped = if self.daily_stopped {
+            self.days_stopped_early + 1
+        } else {
+            self.days_stopped_early
+        };
+
+        // Calculate Sharpe ratio (annualized)
+        let sharpe_ratio = if total > 1 && !self.trade_pnls.is_empty() {
+            let mean_return = total_pnl / total as f64;
+            let variance: f64 = self.trade_pnls.iter()
+                .map(|r| (r - mean_return).powi(2))
+                .sum::<f64>() / total as f64;
+            let std_dev = variance.sqrt();
+            if std_dev > 0.0 {
+                (mean_return / std_dev) * (252.0_f64).sqrt() // Annualized
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        TradingSummary {
+            total_trades: total,
+            wins,
+            losses,
+            breakevens,
+            win_rate,
+            profit_factor,
+            total_pnl,
+            avg_win,
+            avg_loss,
+            max_drawdown: self.max_drawdown,
+            final_balance: self.running_balance,
+            days_stopped_early: days_stopped,
+            signals_skipped: self.signals_skipped,
+            sharpe_ratio,
+        }
+    }
+}
+
+/// Summary of trading results
+#[derive(Debug)]
+pub struct TradingSummary {
+    pub total_trades: u32,
+    pub wins: u32,
+    pub losses: u32,
+    pub breakevens: u32,
+    pub win_rate: f64,
+    pub profit_factor: f64,
+    pub total_pnl: f64,
+    pub avg_win: f64,
+    pub avg_loss: f64,
+    pub max_drawdown: f64,
+    pub final_balance: f64,
+    pub days_stopped_early: u32,
+    pub signals_skipped: u32,
+    pub sharpe_ratio: f64,
 }
 
 /// Actions the trading loop should take
