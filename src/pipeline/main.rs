@@ -626,7 +626,7 @@ enum Commands {
         min_impulse_score: u8,
     },
 
-    /// Live trading via Rithmic (paper or live mode)
+    /// Live trading (paper or live mode) - uses IB Gateway
     Live {
         /// Trading mode: "paper" or "live"
         #[arg(long, default_value = "paper")]
@@ -648,12 +648,12 @@ enum Commands {
         #[arg(short, long, default_value = "cache_2025")]
         cache_dir: PathBuf,
 
-        /// Take profit in points
-        #[arg(long, default_value = "30")]
+        /// Take profit in points (set very high to use trailing stop only)
+        #[arg(long, default_value = "500")]
         take_profit: f64,
 
         /// Trailing stop distance in points
-        #[arg(long, default_value = "6")]
+        #[arg(long, default_value = "4")]
         trailing_stop: f64,
 
         /// Stop buffer beyond LVN level in points
@@ -669,7 +669,7 @@ enum Commands {
         start_minute: u32,
 
         /// Trading end hour (ET, 24h format)
-        #[arg(long, default_value = "11")]
+        #[arg(long, default_value = "16")]
         end_hour: u32,
 
         /// Trading end minute
@@ -677,7 +677,7 @@ enum Commands {
         end_minute: u32,
 
         /// Minimum delta for absorption signal
-        #[arg(long, default_value = "60")]
+        #[arg(long, default_value = "5")]
         min_delta: i64,
 
         /// Maximum LVN volume ratio
