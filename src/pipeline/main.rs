@@ -705,13 +705,13 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    // Set up logging with filter to reduce noise from orderflow_bubbles processing
+    // Set up logging with filter to reduce noise from hitthebid processing
     // The processing module logs every bubble creation at INFO level which is too verbose
     let filter = if args.verbose {
         EnvFilter::new("debug")
     } else {
-        // Only show warnings from orderflow_bubbles, INFO from pipeline
-        EnvFilter::new("pipeline=info,orderflow_bubbles=warn")
+        // Only show warnings from hitthebid, INFO from pipeline
+        EnvFilter::new("pipeline=info,hitthebid=warn")
     };
 
     fmt()

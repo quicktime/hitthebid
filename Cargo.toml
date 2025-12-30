@@ -1,15 +1,15 @@
 [package]
-name = "orderflow-bubbles"
+name = "hitthebid"
 version = "0.1.0"
 edition = "2021"
-description = "Real-time orderflow aggression bubble visualization for NQ/ES futures"
+description = "Hit The Bid - Real-time orderflow visualization and LVN trading signals for futures"
 
 [lib]
-name = "orderflow_bubbles"
+name = "hitthebid"
 path = "src/lib.rs"
 
 [[bin]]
-name = "orderflow-bubbles"
+name = "hitthebid"
 path = "src/main.rs"
 
 [[bin]]

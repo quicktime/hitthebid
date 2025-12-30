@@ -18,7 +18,7 @@ use tokio::sync::broadcast;
 use tracing::info;
 
 // Import from the library crate
-use orderflow_bubbles::{ProcessingState, types::WsMessage};
+use hitthebid::{ProcessingState, types::WsMessage};
 
 /// Captured signal from replay
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,8 +32,8 @@ pub struct CapturedSignal {
 }
 
 /// Convert pipeline trades to the format expected by ProcessingState
-pub fn convert_to_processing_trade(trade: &PipelineTrade) -> orderflow_bubbles::types::Trade {
-    orderflow_bubbles::types::Trade {
+pub fn convert_to_processing_trade(trade: &PipelineTrade) -> hitthebid::types::Trade {
+    hitthebid::types::Trade {
         symbol: trade.symbol.clone(),
         price: trade.price,
         size: trade.size as u32,

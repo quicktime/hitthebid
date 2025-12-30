@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Real-time orderflow visualization for NQ/ES futures. Displays trade aggression bubbles, CVD (Cumulative Volume Delta), absorption detection, stacked imbalances, and confluence signals.
+**Hit The Bid** - Real-time orderflow visualization and LVN trading signals for NQ/ES futures. Displays trade aggression bubbles, CVD (Cumulative Volume Delta), absorption detection, stacked imbalances, confluence signals, and automated LVN retest trading strategy.
 
 ## Build & Run Commands
 

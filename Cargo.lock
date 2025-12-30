@@ -1116,6 +1116,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hitthebid"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrow",
+ "axum",
+ "chrono",
+ "chrono-tz",
+ "clap",
+ "csv",
+ "databento",
+ "dotenvy",
+ "futures",
+ "ibapi",
+ "parquet",
+ "rand 0.8.5",
+ "rand_distr",
+ "rayon",
+ "reqwest",
+ "rithmic-rs",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "zstd",
+]
+
+[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1818,38 +1850,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "orderflow-bubbles"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrow",
- "axum",
- "chrono",
- "chrono-tz",
- "clap",
- "csv",
- "databento",
- "dotenvy",
- "futures",
- "ibapi",
- "parquet",
- "rand 0.8.5",
- "rand_distr",
- "rayon",
- "reqwest",
- "rithmic-rs",
- "serde",
- "serde_json",
- "time",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "zstd",
 ]
 
 [[package]]

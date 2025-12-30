@@ -18,7 +18,7 @@ use tower_http::{
 };
 use tracing::{error, info};
 
-use orderflow_bubbles::{api, streams, supabase, types};
+use hitthebid::{api, streams, supabase, types};
 use streams::{run_databento_stream, run_db_replay, run_demo_stream, run_historical_replay, run_local_replay};
 use supabase::{SessionRecord, SupabaseClient, UserConfig};
 use types::{AppState, ClientMessage, WsMessage};
@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("orderflow_bubbles=info".parse().unwrap())
+                .add_directive("hitthebid=info".parse().unwrap())
                 .add_directive("databento=info".parse().unwrap()),
         )
         .init();
@@ -114,7 +114,7 @@ async fn main() -> Result<()> {
     } else {
         "LIVE"
     };
-    info!("Starting Orderflow Bubbles server");
+    info!("Starting Hit The Bid server");
     info!("Mode: {}", mode);
     if args.db_replay {
         info!("Replaying from Supabase database");
