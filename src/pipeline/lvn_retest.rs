@@ -24,6 +24,7 @@ use crate::market_state::{detect_market_state, MarketState, MarketStateConfig};
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use uuid::Uuid;
 
 /// Configuration for LVN retest strategy
 #[derive(Debug, Clone)]
@@ -125,6 +126,8 @@ pub struct TrackedLevel {
     pub lvn_date: chrono::NaiveDate,
     /// Bar index when absorption was detected (counter-pressure absorbed)
     pub absorption_bar: Option<usize>,
+    /// Optional: Links to the parent impulse for grouped clearing
+    pub impulse_id: Option<Uuid>,
 }
 
 /// Trade direction
@@ -197,8 +200,46 @@ impl LvnSignalGenerator {
                 volume_ratio: lvn.volume_ratio,
                 lvn_date: lvn.date,
                 absorption_bar: None,
+                impulse_id: Some(lvn.impulse_id),
             });
         }
+    }
+
+    /// Add LVN levels with explicit impulse ID (for state machine mode)
+    pub fn add_lvn_levels_with_impulse(&mut self, levels: &[LvnLevel], impulse_id: Uuid) {
+        for lvn in levels {
+            // Quality filter: only use thin LVNs
+            if lvn.volume_ratio > self.config.max_lvn_volume_ratio {
+                continue;
+            }
+
+            let key = (lvn.price * 10.0) as i64;
+            self.tracked_levels.insert(key, TrackedLevel {
+                price: lvn.price,
+                state: LevelState::Untouched,
+                first_touch_bar: None,
+                armed_bar: None,
+                last_traded_bar: None,
+                approached_from_above: None,
+                impulse_direction: lvn.impulse_direction,
+                volume_ratio: lvn.volume_ratio,
+                lvn_date: lvn.date,
+                absorption_bar: None,
+                impulse_id: Some(impulse_id),
+            });
+        }
+    }
+
+    /// Clear all LVNs that belong to a specific impulse
+    pub fn clear_impulse_lvns(&mut self, impulse_id: Uuid) {
+        self.tracked_levels.retain(|_, level| {
+            level.impulse_id != Some(impulse_id)
+        });
+    }
+
+    /// Get the impulse ID for a specific level key
+    pub fn get_level_impulse_id(&self, level_key: i64) -> Option<Uuid> {
+        self.tracked_levels.get(&level_key).and_then(|l| l.impulse_id)
     }
 
     /// Clear all tracked levels (call at end of day)
@@ -497,6 +538,7 @@ impl LvnRetestBacktester {
                 volume_ratio: lvn.volume_ratio,
                 lvn_date: lvn.date,
                 absorption_bar: None,
+                impulse_id: Some(lvn.impulse_id),
             });
         }
 

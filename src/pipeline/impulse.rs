@@ -2,6 +2,7 @@ use crate::bars::Bar;
 use crate::levels::DailyLevels;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// Minimum points for a valid NQ impulse move
 const MIN_IMPULSE_POINTS: f64 = 30.0;
@@ -15,6 +16,11 @@ const MIN_IMPULSE_SCORE: u8 = 4;
 /// Swing lookback period (bars)
 const SWING_LOOKBACK: usize = 10;
 
+/// Default UUID for backward compatibility with old cache files
+fn default_uuid() -> Uuid {
+    Uuid::nil()
+}
+
 /// Direction of impulse move
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImpulseDirection {
@@ -25,6 +31,9 @@ pub enum ImpulseDirection {
 /// Detected impulse leg with scoring details
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImpulseLeg {
+    /// Unique identifier for this impulse leg
+    #[serde(default = "default_uuid")]
+    pub id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub start_price: f64,
@@ -145,6 +154,7 @@ fn try_detect_impulse_at(
         let total_volume: u64 = move_bars.iter().map(|b| b.volume).sum();
 
         return Some(ImpulseLeg {
+            id: Uuid::new_v4(),
             start_time: start_bar.timestamp,
             end_time: end_bar.timestamp,
             start_price: start_bar.open,
@@ -282,6 +292,178 @@ fn check_volume_increase(move_bars: &[Bar], all_bars: &[Bar], start_idx: usize) 
 
     // Volume should be at least 20% higher
     move_avg_volume > prior_avg_volume * 1.2
+}
+
+/// Real-time impulse leg builder for live trading
+/// Accumulates bars as they arrive and determines when an impulse is complete
+#[derive(Debug, Clone)]
+pub struct RealTimeImpulseBuilder {
+    /// Unique ID for this impulse
+    id: Uuid,
+    /// When the impulse started
+    start_time: DateTime<Utc>,
+    /// Starting price (first bar's open)
+    start_price: f64,
+    /// Direction of the impulse
+    direction: ImpulseDirection,
+    /// All bars in this impulse
+    bars: Vec<Bar>,
+    /// Highest price seen
+    high: f64,
+    /// Lowest price seen
+    low: f64,
+    /// Symbol
+    symbol: String,
+}
+
+impl RealTimeImpulseBuilder {
+    /// Create a new impulse builder from the first bar
+    pub fn new(start_bar: &Bar, direction: ImpulseDirection) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            start_time: start_bar.timestamp,
+            start_price: start_bar.open,
+            direction,
+            bars: vec![start_bar.clone()],
+            high: start_bar.high,
+            low: start_bar.low,
+            symbol: start_bar.symbol.clone(),
+        }
+    }
+
+    /// Add a bar to the impulse
+    pub fn add_bar(&mut self, bar: &Bar) {
+        self.high = self.high.max(bar.high);
+        self.low = self.low.min(bar.low);
+        self.bars.push(bar.clone());
+    }
+
+    /// Get the current number of bars
+    pub fn bar_count(&self) -> usize {
+        self.bars.len()
+    }
+
+    /// Get the impulse ID
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
+    /// Get the current move size in points
+    pub fn move_size(&self) -> f64 {
+        match self.direction {
+            ImpulseDirection::Up => self.high - self.start_price,
+            ImpulseDirection::Down => self.start_price - self.low,
+        }
+    }
+
+    /// Get the end price (current extreme)
+    pub fn end_price(&self) -> f64 {
+        match self.direction {
+            ImpulseDirection::Up => self.high,
+            ImpulseDirection::Down => self.low,
+        }
+    }
+
+    /// Get the direction
+    pub fn direction(&self) -> ImpulseDirection {
+        self.direction
+    }
+
+    /// Get the start time
+    pub fn start_time(&self) -> DateTime<Utc> {
+        self.start_time
+    }
+
+    /// Check if the impulse is large enough (meets minimum size)
+    pub fn is_sufficient_size(&self) -> bool {
+        self.move_size() >= MIN_IMPULSE_POINTS
+    }
+
+    /// Check if impulse is still "fast" (within max candles)
+    pub fn is_fast(&self) -> bool {
+        self.bars.len() <= MAX_FAST_CANDLES
+    }
+
+    /// Check if candles are uniform (mostly same direction, little overlap)
+    pub fn is_uniform(&self) -> bool {
+        check_uniform_candles(&self.bars, self.direction)
+    }
+
+    /// Check if volume is increasing compared to prior bars
+    /// For real-time, we just check if average volume is above a threshold
+    pub fn volume_increased(&self, prior_avg_volume: f64) -> bool {
+        if self.bars.is_empty() {
+            return false;
+        }
+        let move_avg_volume: f64 = self.bars.iter().map(|b| b.volume as f64).sum::<f64>()
+            / self.bars.len() as f64;
+        move_avg_volume > prior_avg_volume * 1.2
+    }
+
+    /// Calculate the impulse score (0-5)
+    pub fn score(&self, broke_swing: bool, prior_avg_volume: f64) -> u8 {
+        let criteria = [
+            broke_swing,
+            self.is_fast(),
+            self.is_uniform(),
+            self.volume_increased(prior_avg_volume),
+            self.is_sufficient_size(),
+        ];
+        criteria.iter().filter(|&&x| x).count() as u8
+    }
+
+    /// Check if the impulse is complete (score >= 4, sufficient size, fast)
+    pub fn is_complete(&self, broke_swing: bool, prior_avg_volume: f64) -> bool {
+        self.is_sufficient_size()
+            && self.score(broke_swing, prior_avg_volume) >= MIN_IMPULSE_SCORE
+    }
+
+    /// Get the total volume of the impulse
+    pub fn total_volume(&self) -> u64 {
+        self.bars.iter().map(|b| b.volume).sum()
+    }
+
+    /// Finalize and create an ImpulseLeg
+    pub fn finalize(self, broke_swing: bool, prior_avg_volume: f64) -> ImpulseLeg {
+        let end_bar = self.bars.last().unwrap();
+        let num_candles = self.bars.len();
+        let total_volume: u64 = self.bars.iter().map(|b| b.volume).sum();
+
+        // Pre-compute all values before moving self
+        let id = self.id;
+        let start_time = self.start_time;
+        let end_time = end_bar.timestamp;
+        let start_price = self.start_price;
+        let end_price = self.end_price();
+        let direction = self.direction;
+        let date = self.start_time.date_naive();
+        let score_total = self.score(broke_swing, prior_avg_volume);
+        let was_fast = self.is_fast();
+        let uniform_candles = self.is_uniform();
+        let volume_increased = self.volume_increased(prior_avg_volume);
+        let sufficient_size = self.is_sufficient_size();
+        let symbol = self.symbol;
+
+        ImpulseLeg {
+            id,
+            start_time,
+            end_time,
+            start_price,
+            end_price,
+            direction,
+            symbol,
+            date,
+            score_total,
+            broke_swing,
+            was_fast,
+            uniform_candles,
+            volume_increased,
+            sufficient_size,
+            num_candles,
+            total_volume,
+            avg_volume_per_bar: if num_candles > 0 { total_volume / num_candles as u64 } else { 0 },
+        }
+    }
 }
 
 #[cfg(test)]

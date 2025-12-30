@@ -21,6 +21,7 @@ use rithmic_rs::api::rithmic_command_types::RithmicBracketOrder;
 use crate::bars::Bar;
 use super::lvn_retest::{LvnRetestConfig, LvnSignalGenerator, Direction, LvnSignal};
 use super::precompute;
+use super::state_machine::{TradingStateMachine, StateMachineConfig, StateTransition, LiveDailyLevels};
 
 /// Configuration for live trading
 #[derive(Debug, Clone)]
@@ -227,6 +228,10 @@ pub struct LiveTrader {
     pending_signal: Option<LvnSignal>,
     open_position: Option<OpenPosition>,
 
+    // State machine for real-time breakout detection (optional)
+    state_machine: Option<TradingStateMachine>,
+    use_state_machine: bool,
+
     // Statistics
     daily_losses: i32,
     daily_pnl: f64,
@@ -252,6 +257,9 @@ pub struct LiveTrader {
     current_date: Option<chrono::NaiveDate>,
     days_stopped_early: u32,
     signals_skipped: u32,
+
+    // Track which impulse generated the current trade (for clearing LVNs after trade)
+    current_trade_impulse_id: Option<uuid::Uuid>,
 }
 
 impl LiveTrader {
@@ -267,6 +275,8 @@ impl LiveTrader {
             bar_aggregator: BarAggregator::new(),
             pending_signal: None,
             open_position: None,
+            state_machine: None,
+            use_state_machine: false,
             daily_losses: 0,
             daily_pnl: 0.0,
             total_trades: 0,
@@ -287,6 +297,22 @@ impl LiveTrader {
             current_date: None,
             days_stopped_early: 0,
             signals_skipped: 0,
+            current_trade_impulse_id: None,
+        }
+    }
+
+    /// Create a new LiveTrader with state machine enabled for real-time breakout detection
+    pub fn new_with_state_machine(config: LiveConfig, sm_config: StateMachineConfig) -> Self {
+        let mut trader = Self::new(config);
+        trader.state_machine = Some(TradingStateMachine::new(sm_config));
+        trader.use_state_machine = true;
+        trader
+    }
+
+    /// Set daily levels for the state machine
+    pub fn set_daily_levels(&mut self, levels: LiveDailyLevels) {
+        if let Some(ref mut sm) = self.state_machine {
+            sm.set_daily_levels(levels);
         }
     }
 
@@ -295,15 +321,63 @@ impl LiveTrader {
         self.signal_gen.add_lvn_levels(levels);
     }
 
-    /// Load LVN levels from cache
+    /// Clear all LVN levels (for new day in replay)
+    pub fn clear_levels(&mut self) {
+        self.signal_gen.clear_levels();
+    }
+
+    /// Reset for new trading day in replay (close any open position, clear levels, reset daily stats)
+    pub fn reset_for_new_day(&mut self, last_price: Option<f64>) {
+        // Close any open position at EOD (count as timeout/scratch)
+        if let Some(pos) = self.open_position.take() {
+            let exit_price = last_price.unwrap_or(pos.entry_price);
+            let pnl_points = match pos.direction {
+                Direction::Long => exit_price - pos.entry_price,
+                Direction::Short => pos.entry_price - exit_price,
+            };
+
+            // Update stats
+            self.total_trades += 1;
+            self.running_balance += pnl_points * self.config.point_value * self.config.contracts as f64;
+
+            if pnl_points > 1.0 {
+                self.wins += 1;
+                self.gross_profit += pnl_points;
+            } else if pnl_points < -1.0 {
+                self.losses += 1;
+                self.gross_loss += pnl_points.abs();
+            } else {
+                self.breakevens += 1;
+            }
+
+            info!("EOD CLOSE: {:?} @ {:.2} | P&L: {:.2} pts", pos.direction, exit_price, pnl_points);
+        }
+
+        // Clear pending signals too
+        self.pending_signal = None;
+        self.current_trade_impulse_id = None;
+
+        self.clear_levels();
+        self.reset_daily();
+
+        // Reset state machine for new day
+        if let Some(ref mut sm) = self.state_machine {
+            sm.reset_for_new_day();
+        }
+    }
+
+    /// Load LVN levels from cache - ONLY yesterday's levels (for live trading)
     pub fn load_lvn_levels(&mut self, cache_dir: &PathBuf) -> Result<usize> {
         let days = precompute::load_all_cached(cache_dir, None)?;
-        let mut total_levels = 0;
-        for day in &days {
-            self.signal_gen.add_lvn_levels(&day.lvn_levels);
-            total_levels += day.lvn_levels.len();
+
+        // Only load the MOST RECENT day's levels (yesterday's precompute)
+        if let Some(yesterday) = days.last() {
+            self.signal_gen.add_lvn_levels(&yesterday.lvn_levels);
+            info!("Loaded {} LVN levels from {}", yesterday.lvn_levels.len(), yesterday.date);
+            Ok(yesterday.lvn_levels.len())
+        } else {
+            Ok(0)
         }
-        Ok(total_levels)
     }
 
     /// Check if timestamp is within trading hours (uses bar timestamp for replay, wall clock for live)
@@ -357,6 +431,44 @@ impl LiveTrader {
             warn!("Daily loss limit reached: {:.2} pts", self.daily_pnl);
             self.daily_stopped = true;
             return Some(TradeAction::FlattenAll { reason: "Daily loss limit".to_string() });
+        }
+
+        // Process state machine if enabled (for real-time breakout detection)
+        if self.use_state_machine {
+            if let Some(ref mut sm) = self.state_machine {
+                if let Some(transition) = sm.process_bar(bar) {
+                    match transition {
+                        StateTransition::BreakoutDetected { level, direction, price } => {
+                            info!(
+                                "STATE: BREAKOUT {} @ {:.2} | Direction: {:?}",
+                                level, price, direction
+                            );
+                        }
+                        StateTransition::ImpulseComplete { impulse_id, lvn_count, direction } => {
+                            info!(
+                                "STATE: IMPULSE COMPLETE | {} LVNs | Direction: {:?} | ID: {}",
+                                lvn_count, direction, impulse_id
+                            );
+                            // Add the newly extracted LVNs to the signal generator
+                            let lvns = sm.active_lvns();
+                            self.signal_gen.add_lvn_levels_with_impulse(lvns, impulse_id);
+                        }
+                        StateTransition::ImpulseInvalid { reason } => {
+                            info!("STATE: IMPULSE INVALID | {}", reason);
+                        }
+                        StateTransition::HuntingTimeout => {
+                            info!("STATE: HUNTING TIMEOUT - resetting");
+                            // Clear LVNs from this impulse
+                            if let Some(impulse_id) = sm.active_impulse_id() {
+                                self.signal_gen.clear_impulse_lvns(impulse_id);
+                            }
+                        }
+                        StateTransition::Reset => {
+                            debug!("STATE: RESET - waiting for breakout");
+                        }
+                    }
+                }
+            }
         }
 
         // Step 1: If we have a pending signal, enter now
@@ -544,6 +656,18 @@ impl LiveTrader {
                 let direction = pos.direction;
                 self.open_position = None;
 
+                // Clear LVNs from this impulse if using state machine mode
+                if self.use_state_machine {
+                    if let Some(impulse_id) = self.current_trade_impulse_id.take() {
+                        info!("Clearing LVNs from impulse {} after trade exit", impulse_id);
+                        self.signal_gen.clear_impulse_lvns(impulse_id);
+                        // Also reset the state machine to wait for next breakout
+                        if let Some(ref mut sm) = self.state_machine {
+                            sm.reset();
+                        }
+                    }
+                }
+
                 return Some(TradeAction::Exit {
                     direction,
                     price: exit_price,
@@ -574,6 +698,11 @@ impl LiveTrader {
                 "SIGNAL: {:?} @ {:.2} | Level: {:.2} | Delta: {}",
                 signal.direction, signal.price, signal.level_price, signal.delta
             );
+
+            // Capture the impulse ID for this signal's level (for clearing after trade)
+            let level_key = (signal.level_price * 10.0) as i64;
+            self.current_trade_impulse_id = self.signal_gen.get_level_impulse_id(level_key);
+
             self.pending_signal = Some(signal);
             return Some(TradeAction::SignalPending);
         }

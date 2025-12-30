@@ -15,8 +15,11 @@ mod monte_carlo;
 mod live_trading;
 mod replay_trading;
 mod rithmic_live;
+mod ib_live;
+mod databento_ib_live;
+mod state_machine;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use tracing::info;
@@ -540,6 +543,81 @@ enum Commands {
         commission: f64,
     },
 
+    /// Replay test with real-time state machine (no look-ahead bias)
+    ReplayRealtime {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio (lower = thinner = higher quality)
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Breakout threshold in points
+        #[arg(long, default_value = "2.0")]
+        breakout_threshold: f64,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "30.0")]
+        min_impulse_size: f64,
+
+        /// Maximum impulse bars (1s bars, default 300 = 5 min)
+        #[arg(long, default_value = "300")]
+        max_impulse_bars: usize,
+
+        /// Maximum hunting bars (1s bars, default 600 = 10 min)
+        #[arg(long, default_value = "600")]
+        max_hunting_bars: usize,
+    },
+
     /// Live trading via Rithmic (paper or live mode)
     Live {
         /// Trading mode: "paper" or "live"
@@ -621,6 +699,200 @@ enum Commands {
         /// Commission per round-trip in dollars
         #[arg(long, default_value = "0.0")]
         commission: f64,
+    },
+
+    /// Test Interactive Brokers connection
+    IbTest,
+
+    /// Live trading via Interactive Brokers (paper or live)
+    IbLive {
+        /// Trading mode: "paper" or "live"
+        #[arg(long, default_value = "paper")]
+        mode: String,
+
+        /// TWS/Gateway host
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+
+        /// TWS/Gateway port (7497 for paper, 7496 for live)
+        #[arg(long, default_value = "7497")]
+        port: u16,
+
+        /// Client ID (must be unique per connection)
+        #[arg(long, default_value = "1")]
+        client_id: i32,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance for tracking
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Max losing trades per day (0 = disabled)
+        #[arg(long, default_value = "3")]
+        max_daily_losses: i32,
+
+        /// Daily loss limit in points
+        #[arg(long, default_value = "100")]
+        daily_loss_limit: f64,
+    },
+
+    /// Test IB market data subscription (works with delayed data)
+    IbDataTest {
+        /// Symbol to test (default: AAPL stock)
+        #[arg(long, default_value = "AAPL")]
+        symbol: String,
+
+        /// Duration in seconds to collect bars
+        #[arg(long, default_value = "30")]
+        duration: u64,
+    },
+
+    /// Test IB NQ futures data specifically
+    IbFuturesTest {
+        /// Duration in seconds to collect bars
+        #[arg(long, default_value = "30")]
+        duration: u64,
+    },
+
+    /// IB polling mode (uses historical data, no realtime subscription needed)
+    IbPolling {
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+    },
+
+    /// Live trading with Databento data + IB execution (production mode)
+    DatabentoIbLive {
+        /// Trading mode: "paper" or "live"
+        #[arg(long, default_value = "paper")]
+        mode: String,
+
+        /// IB Client ID (must be unique per connection)
+        #[arg(long, default_value = "2")]
+        client_id: i32,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points
+        #[arg(long, default_value = "30")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "6")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "11")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "60")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance for tracking
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Max losing trades per day (0 = disabled)
+        #[arg(long, default_value = "3")]
+        max_daily_losses: i32,
+
+        /// Daily loss limit in points
+        #[arg(long, default_value = "100")]
+        daily_loss_limit: f64,
     },
 }
 
@@ -785,6 +1057,48 @@ async fn main() -> Result<()> {
 
             replay_trading::run_replay(cache_dir, date, config).await?;
         }
+        Commands::ReplayRealtime {
+            cache_dir, date,
+            contracts, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance,
+            breakout_threshold, min_impulse_size,
+            max_impulse_bars, max_hunting_bars,
+        } => {
+            let config = rithmic_live::LiveConfig {
+                symbol: "NQ".to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir: cache_dir.clone(),
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
+                starting_balance,
+                max_daily_losses: 0, // Not used in realtime mode
+                daily_loss_limit: 1000.0,
+                point_value: 20.0,
+                slippage: 0.0,
+                commission: 0.0,
+            };
+
+            let sm_config = state_machine::StateMachineConfig {
+                breakout_threshold,
+                max_impulse_bars,
+                min_impulse_size,
+                max_hunting_bars,
+                min_impulse_score: 4,
+            };
+
+            replay_trading::run_replay_realtime(cache_dir, date, config, sm_config).await?;
+        }
         Commands::Live {
             mode, symbol, exchange, contracts, cache_dir,
             take_profit, trailing_stop, stop_buffer,
@@ -832,6 +1146,150 @@ async fn main() -> Result<()> {
             };
 
             rithmic_live::run_live(config, paper_mode).await?;
+        }
+        Commands::IbTest => {
+            ib_live::run_ib_demo()?;
+        }
+        Commands::IbLive {
+            mode, host, port, client_id, contracts, cache_dir,
+            take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance, max_daily_losses, daily_loss_limit,
+        } => {
+            let paper_mode = mode.to_lowercase() != "live";
+
+            if !paper_mode {
+                println!("\n⚠️  LIVE TRADING MODE ⚠️");
+                println!("This will execute REAL trades with REAL money.");
+                println!("Type 'CONFIRM' to proceed:");
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+                if input.trim() != "CONFIRM" {
+                    println!("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            let config = rithmic_live::LiveConfig {
+                symbol: "NQ".to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
+                starting_balance,
+                max_daily_losses,
+                daily_loss_limit,
+                point_value: 20.0,
+                slippage: 0.0,
+                commission: 0.0,
+            };
+
+            let ib_config = ib_live::IbConfig {
+                host,
+                port,
+                client_id,
+            };
+
+            ib_live::run_ib_live(config, ib_config, paper_mode)?;
+        }
+        Commands::IbDataTest { symbol, duration } => {
+            ib_live::run_ib_data_test(&symbol, duration)?;
+        }
+        Commands::IbFuturesTest { duration } => {
+            ib_live::run_ib_futures_test(duration)?;
+        }
+        Commands::IbPolling {
+            contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+        } => {
+            let config = rithmic_live::LiveConfig {
+                symbol: "NQ".to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour: 9,
+                start_minute: 30,
+                end_hour: 16,
+                end_minute: 0,
+                min_delta: 60,
+                max_lvn_ratio: 0.4,
+                level_tolerance: 3.0,
+                starting_balance: 30000.0,
+                max_daily_losses: 3,
+                daily_loss_limit: 100.0,
+                point_value: 20.0,
+                slippage: 0.0,
+                commission: 0.0,
+            };
+
+            let ib_config = ib_live::IbConfig::default();
+            ib_live::run_ib_polling_mode(config, ib_config)?;
+        }
+        Commands::DatabentoIbLive {
+            mode, client_id, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance, max_daily_losses, daily_loss_limit,
+        } => {
+            let paper_mode = mode.to_lowercase() != "live";
+
+            if !paper_mode {
+                println!("\n⚠️  LIVE TRADING MODE ⚠️");
+                println!("This will execute REAL trades with REAL money.");
+                println!("Type 'CONFIRM' to proceed:");
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+                if input.trim() != "CONFIRM" {
+                    println!("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            let api_key = std::env::var("DATABENTO_API_KEY")
+                .context("DATABENTO_API_KEY not set")?;
+
+            let config = rithmic_live::LiveConfig {
+                symbol: "NQ".to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
+                starting_balance,
+                max_daily_losses,
+                daily_loss_limit,
+                point_value: 20.0,
+                slippage: 0.0,
+                commission: 0.0,
+            };
+
+            let ib_config = ib_live::IbConfig {
+                client_id,
+                ..ib_live::IbConfig::default()
+            };
+            databento_ib_live::run_databento_ib_live(api_key, config, ib_config, paper_mode).await?;
         }
     }
 
