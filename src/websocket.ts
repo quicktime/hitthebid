@@ -83,6 +83,18 @@ export interface ConfluenceEvent {
   x: number;
 }
 
+export interface TradingSignal {
+  timestamp: number;
+  signalType: 'entry' | 'exit' | 'stop_update' | 'flatten';
+  direction: 'long' | 'short' | '';
+  price: number;
+  stop?: number;
+  target?: number;
+  pnlPoints?: number;
+  reason?: string;
+  x: number;
+}
+
 export interface SignalStats {
   count: number;
   bullishCount: number;
@@ -124,6 +136,7 @@ export type WsMessage =
   | { type: 'DeltaFlip' } & DeltaFlip
   | { type: 'StackedImbalance' } & StackedImbalance
   | { type: 'Confluence' } & ConfluenceEvent
+  | { type: 'TradingSignal' } & TradingSignal
   | { type: 'SessionStats' } & SessionStats
   | { type: 'ReplayStatus' } & ReplayStatus
   | { type: 'Connected'; symbols: string[]; mode: string }

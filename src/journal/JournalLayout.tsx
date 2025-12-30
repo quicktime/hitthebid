@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useJournalStore } from '../stores/journalStore';
 import '../App.css';
 
@@ -6,7 +6,7 @@ export function JournalLayout() {
   const { getTodaySession, getAllTimeStats, getOpenTrades } = useJournalStore();
 
   const todaySession = getTodaySession();
-  const stats = getAllTimeStats();
+  getAllTimeStats(); // Keep call for potential side effects
   const openTrades = getOpenTrades();
 
   const navItems = [

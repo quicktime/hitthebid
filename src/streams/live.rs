@@ -4,11 +4,12 @@ use databento::{
     live::Subscription,
     LiveClient,
 };
-use std::{sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::processing::ProcessingState;
+use crate::trading::{TradingConfig, TradingObserver};
 use crate::types::{AppState, Trade, WsMessage};
 
 /// Live mode: Stream real-time data from Databento
@@ -16,8 +17,14 @@ pub async fn run_databento_stream(
     api_key: String,
     symbols: Vec<String>,
     state: Arc<AppState>,
+    trading_enabled: bool,
+    _cache_dir: PathBuf,
 ) -> Result<()> {
     info!("Connecting to Databento...");
+
+    if trading_enabled {
+        info!("Trading signals ENABLED - will generate entry/exit alerts");
+    }
 
     let mut client = LiveClient::builder()
         .key(api_key)?
@@ -72,6 +79,45 @@ pub async fn run_databento_stream(
             pstate.send_volume_profile(&tx_clone);
         }
     });
+
+    // Spawn trading signal observer (if enabled)
+    if trading_enabled {
+        let mut rx = state.tx.subscribe();
+        let tx_trading = state.tx.clone();
+
+        tokio::spawn(async move {
+            let mut observer = TradingObserver::new(TradingConfig::default());
+            let mut last_price = 0.0f64;
+
+            loop {
+                match rx.recv().await {
+                    Ok(msg) => {
+                        match msg {
+                            WsMessage::DeltaFlip(flip) => {
+                                // Get current price from recent bubbles
+                                observer.on_delta_flip(
+                                    &flip.direction,
+                                    last_price,
+                                    flip.timestamp,
+                                    &tx_trading,
+                                );
+                            }
+                            WsMessage::Bubble(bubble) => {
+                                last_price = bubble.price;
+                                // Update trading observer with price for exit checks
+                                observer.on_price_update(bubble.price, bubble.timestamp, &tx_trading);
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Trading observer channel error: {}", e);
+                        break;
+                    }
+                }
+            }
+        });
+    }
 
     // Process incoming records
     while let Some(record) = client.next_record().await? {

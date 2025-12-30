@@ -77,6 +77,14 @@ struct Args {
     /// Minimum trade size to process
     #[arg(short = 'f', long, default_value = "1")]
     min_size: u32,
+
+    /// Enable trading signal generation (LVN state machine)
+    #[arg(long, default_value = "false")]
+    trading: bool,
+
+    /// Cache directory for daily levels (used with --trading)
+    #[arg(long, default_value = "cache_2025")]
+    cache_dir: std::path::PathBuf,
 }
 
 #[tokio::main]
@@ -117,6 +125,10 @@ async fn main() -> Result<()> {
     }
     info!("Port: {}", args.port);
     info!("Min size filter: {}", args.min_size);
+    if args.trading {
+        info!("Trading signals: ENABLED (LVN state machine)");
+        info!("Cache dir: {:?}", args.cache_dir);
+    }
 
     // Create broadcast channel for processed data
     let (tx, _rx) = broadcast::channel::<WsMessage>(1000);
@@ -294,9 +306,17 @@ async fn main() -> Result<()> {
             .api_key
             .clone()
             .expect("API key required for live mode (use --demo or --local-replay)");
+        let trading_enabled = args.trading;
+        let cache_dir = args.cache_dir.clone();
         info!("📡 Starting LIVE mode with Databento");
         tokio::spawn(async move {
-            if let Err(e) = run_databento_stream(api_key, symbols, state_clone).await {
+            if let Err(e) = run_databento_stream(
+                api_key,
+                symbols,
+                state_clone,
+                trading_enabled,
+                cache_dir,
+            ).await {
                 error!("Databento stream error: {}", e);
             }
         });

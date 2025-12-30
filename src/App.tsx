@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { BubbleRenderer } from './BubbleRenderer';
 import { StatsPage } from './StatsPage';
@@ -6,7 +6,7 @@ import { ReplayControls } from './ReplayControls';
 import { SettingsPanel } from './SettingsPanel';
 import { DirectionChart } from './DirectionChart';
 import { PnLSimulator, SimulatedTrade } from './PnLSimulator';
-import { useFlowStore, Bubble, AbsorptionAlert, StackedImbalance, ConfluenceEvent } from './stores/flowStore';
+import { useFlowStore, Bubble, AbsorptionAlert, StackedImbalance, ConfluenceEvent, TradingSignal } from './stores/flowStore';
 import { usePreferencesStore } from './stores/preferencesStore';
 import './App.css';
 
@@ -118,13 +118,67 @@ function playConfluenceSound(direction: 'bullish' | 'bearish') {
   }
 }
 
+// Audio alert for trading signals - urgent fanfare for entry, resolution for exit
+function playTradingSignalSound(signalType: 'entry' | 'exit', direction: 'long' | 'short') {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    if (signalType === 'entry') {
+      // Entry: Ascending fanfare
+      const baseFreq = direction === 'long' ? 440 : 330;
+      const freqs = [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 2];
+
+      freqs.forEach((freq, i) => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        const startTime = audioContext.currentTime + (i * 0.1);
+        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+        osc.start(startTime);
+        osc.stop(startTime + 0.15);
+      });
+
+      // Final sustained note
+      const finalOsc = audioContext.createOscillator();
+      const finalGain = audioContext.createGain();
+      finalOsc.connect(finalGain);
+      finalGain.connect(audioContext.destination);
+      finalOsc.frequency.value = baseFreq * 2;
+      finalOsc.type = 'triangle';
+      finalGain.gain.setValueAtTime(0.3, audioContext.currentTime + 0.4);
+      finalGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+      finalOsc.start(audioContext.currentTime + 0.4);
+      finalOsc.stop(audioContext.currentTime + 0.8);
+    } else {
+      // Exit: Resolution tone
+      const baseFreq = direction === 'long' ? 523 : 392;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.frequency.value = baseFreq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      osc.start(audioContext.currentTime);
+      osc.stop(audioContext.currentTime + 0.5);
+    }
+  } catch (e) {
+    console.log('Audio not supported', e);
+  }
+}
+
 function App() {
   // Zustand stores
   const {
     isConnected,
     error,
     serverMode,
-    connectedSymbols,
+    connectedSymbols: _connectedSymbols,
     lastPrice,
     priceRange,
     currentCVD,
@@ -136,6 +190,8 @@ function App() {
     volumeProfile,
     absorptionZones,
     stackedImbalances,
+    tradingSignals,
+    activeTradingSignal,
     sessionStats,
     replayStatus,
     isPaused,
@@ -151,7 +207,7 @@ function App() {
     animateFrame,
     cleanupOldItems,
     clearError,
-    getFilteredBubbles,
+    getFilteredBubbles: _getFilteredBubbles,
   } = useFlowStore();
 
   const {
@@ -160,7 +216,7 @@ function App() {
     selectedSymbol,
     notificationsEnabled,
     setMinSize,
-    setSymbol: setSelectedSymbol,
+    setSymbol: _setSelectedSymbol,
     setNotifications: setNotificationsEnabled,
     toggleSound,
   } = usePreferencesStore();
@@ -174,6 +230,7 @@ function App() {
   const [showAbsorptionBadge, setShowAbsorptionBadge] = useState<AbsorptionAlert | null>(null);
   const [showStackedBadge, setShowStackedBadge] = useState<StackedImbalance | null>(null);
   const [showConfluenceBadge, setShowConfluenceBadge] = useState<ConfluenceEvent | null>(null);
+  const [showTradingSignalBadge, setShowTradingSignalBadge] = useState<TradingSignal | null>(null);
   const [currentView, setCurrentView] = useState<'chart' | 'stats' | 'history'>('chart');
   const [showSettings, setShowSettings] = useState(false);
   const [notificationsPermission, setNotificationsPermission] = useState<NotificationPermission>('default');
@@ -189,6 +246,7 @@ function App() {
   const prevZeroCrossCount = useRef(0);
   const prevStackedCount = useRef(0);
   const prevConfluenceCount = useRef(0);
+  const prevTradingSignalCount = useRef(0);
   const { absorptionAlerts } = useFlowStore();
   const prevAbsorptionCount = useRef(0);
 
@@ -289,6 +347,48 @@ function App() {
     }
     prevConfluenceCount.current = confluenceEvents.length;
   }, [confluenceEvents, isSoundEnabled]);
+
+  // React to new trading signals with UI effects
+  useEffect(() => {
+    if (tradingSignals.length > prevTradingSignalCount.current) {
+      const latest = tradingSignals[tradingSignals.length - 1];
+
+      // Only show badge for entry and exit signals
+      if (latest.signalType === 'entry' || latest.signalType === 'exit') {
+        setShowTradingSignalBadge(latest);
+
+        // Keep entry signals visible longer
+        const timeout = latest.signalType === 'entry' ? 10000 : 5000;
+        setTimeout(() => setShowTradingSignalBadge(null), timeout);
+
+        // Sound
+        if (isSoundEnabled && latest.direction) {
+          playTradingSignalSound(
+            latest.signalType as 'entry' | 'exit',
+            latest.direction as 'long' | 'short'
+          );
+        }
+
+        // Browser notification
+        if (Notification.permission === 'granted' && !document.hasFocus()) {
+          const title = latest.signalType === 'entry'
+            ? `TRADE SIGNAL: ${latest.direction.toUpperCase()}`
+            : `TRADE EXIT: ${latest.reason || 'Closed'}`;
+          const body = latest.signalType === 'entry'
+            ? `Entry: ${latest.price.toFixed(2)} | Stop: ${latest.stop?.toFixed(2)} | Target: ${latest.target?.toFixed(2)}`
+            : `P&L: ${latest.pnlPoints?.toFixed(2)} pts`;
+
+          new Notification(title, {
+            body,
+            tag: `trading-${latest.timestamp}`,
+            icon: '/favicon.ico',
+            requireInteraction: latest.signalType === 'entry',
+          });
+        }
+      }
+    }
+    prevTradingSignalCount.current = tradingSignals.length;
+  }, [tradingSignals, isSoundEnabled]);
 
   // Replay control callbacks using store actions
   const handleReplayPause = useCallback(() => {
@@ -892,6 +992,70 @@ function App() {
                 ? 'Multiple signals agree - consider LONG entry'
                 : 'Multiple signals agree - consider SHORT entry'}
             </div>
+          </div>
+        )}
+
+        {/* Trading Signal Entry Badge */}
+        {showTradingSignalBadge && showTradingSignalBadge.signalType === 'entry' && (
+          <div className={`trading-signal-badge ${showTradingSignalBadge.direction}`}>
+            <div className="signal-header">
+              <div className="badge-icon">{showTradingSignalBadge.direction === 'long' ? '🚀' : '🔻'}</div>
+              <div className="badge-text">
+                {showTradingSignalBadge.direction.toUpperCase()} SIGNAL
+              </div>
+            </div>
+            <div className="signal-details">
+              <div className="signal-row">
+                <span className="signal-label">Entry</span>
+                <span className="signal-value entry">{showTradingSignalBadge.price.toFixed(2)}</span>
+              </div>
+              <div className="signal-row">
+                <span className="signal-label">Stop</span>
+                <span className="signal-value stop">{showTradingSignalBadge.stop?.toFixed(2)}</span>
+              </div>
+              <div className="signal-row">
+                <span className="signal-label">Target</span>
+                <span className="signal-value target">{showTradingSignalBadge.target?.toFixed(2)}</span>
+              </div>
+            </div>
+            <button
+              className={`badge-trade-btn ${showTradingSignalBadge.direction === 'long' ? 'bullish' : 'bearish'}`}
+              onClick={() => enterTradeFromSignal(
+                showTradingSignalBadge.direction === 'long' ? 'bullish' : 'bearish',
+                'lvn_retest',
+                showTradingSignalBadge.price
+              )}
+            >
+              EXECUTE {showTradingSignalBadge.direction.toUpperCase()}
+            </button>
+            <div className="badge-subtitle">
+              Delta Confirmation Signal
+            </div>
+          </div>
+        )}
+
+        {/* Trading Signal Exit Badge */}
+        {showTradingSignalBadge && showTradingSignalBadge.signalType === 'exit' && (
+          <div className={`trading-exit-badge ${(showTradingSignalBadge.pnlPoints || 0) >= 0 ? 'win' : 'loss'}`}>
+            <div className="badge-icon">{(showTradingSignalBadge.pnlPoints || 0) >= 0 ? '✅' : '❌'}</div>
+            <div className="badge-text">TRADE CLOSED</div>
+            <div className="exit-reason">{showTradingSignalBadge.reason}</div>
+            <div className="exit-pnl">
+              <span className="pnl-label">P&L:</span>
+              <span className={`pnl-value ${(showTradingSignalBadge.pnlPoints || 0) >= 0 ? 'positive' : 'negative'}`}>
+                {(showTradingSignalBadge.pnlPoints || 0) >= 0 ? '+' : ''}{showTradingSignalBadge.pnlPoints?.toFixed(2)} pts
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Active Position Indicator */}
+        {activeTradingSignal && !showTradingSignalBadge && (
+          <div className={`active-position-indicator ${activeTradingSignal.direction}`}>
+            <span className="position-icon">{activeTradingSignal.direction === 'long' ? '🔼' : '🔽'}</span>
+            <span className="position-label">{activeTradingSignal.direction.toUpperCase()}</span>
+            <span className="position-entry">@ {activeTradingSignal.price.toFixed(2)}</span>
+            <span className="position-stop">Stop: {activeTradingSignal.stop?.toFixed(2)}</span>
           </div>
         )}
 

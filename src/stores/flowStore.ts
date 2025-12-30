@@ -78,6 +78,18 @@ export interface ConfluenceEvent {
   x: number;
 }
 
+export interface TradingSignal {
+  timestamp: number;
+  signalType: 'entry' | 'exit' | 'stop_update' | 'flatten';
+  direction: 'long' | 'short' | '';
+  price: number;
+  stop?: number;
+  target?: number;
+  pnlPoints?: number;
+  reason?: string;
+  x: number;
+}
+
 export interface SignalStats {
   count: number;
   bullishCount: number;
@@ -128,6 +140,10 @@ interface FlowState {
   absorptionZones: AbsorptionZone[];
   stackedImbalances: StackedImbalance[];
   confluenceEvents: ConfluenceEvent[];
+
+  // Trading signals
+  tradingSignals: TradingSignal[];
+  activeTradingSignal: TradingSignal | null;
 
   // Session
   sessionStats: SessionStats | null;
@@ -184,6 +200,8 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
   absorptionZones: [],
   stackedImbalances: [],
   confluenceEvents: [],
+  tradingSignals: [],
+  activeTradingSignal: null,
   sessionStats: null,
   replayStatus: null,
   isPaused: false,
@@ -323,6 +341,7 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
       absorptionAlerts: state.absorptionAlerts.filter((a) => now - a.timestamp < maxAgeMs),
       stackedImbalances: state.stackedImbalances.filter((s) => now - s.timestamp < maxAgeMs),
       confluenceEvents: state.confluenceEvents.filter((c) => now - c.timestamp < maxAgeMs),
+      tradingSignals: state.tradingSignals.filter((s) => now - s.timestamp < maxAgeMs),
     });
   },
 
@@ -477,6 +496,50 @@ export const useFlowStore = create<FlowState>()((set, get) => ({
           x: message.x,
         };
         set({ confluenceEvents: [...state.confluenceEvents, event] });
+        break;
+      }
+
+      case 'TradingSignal': {
+        const signal: TradingSignal = {
+          timestamp: message.timestamp,
+          signalType: message.signalType,
+          direction: message.direction,
+          price: message.price,
+          stop: message.stop,
+          target: message.target,
+          pnlPoints: message.pnlPoints,
+          reason: message.reason,
+          x: message.x,
+        };
+
+        // Keep max 50 trading signals
+        const MAX_SIGNALS = 50;
+        let newSignals = [...state.tradingSignals, signal];
+        if (newSignals.length > MAX_SIGNALS) {
+          newSignals = newSignals.slice(-MAX_SIGNALS);
+        }
+
+        // Track active position
+        if (signal.signalType === 'entry') {
+          set({
+            tradingSignals: newSignals,
+            activeTradingSignal: signal,
+          });
+        } else if (signal.signalType === 'exit' || signal.signalType === 'flatten') {
+          set({
+            tradingSignals: newSignals,
+            activeTradingSignal: null,
+          });
+        } else if (signal.signalType === 'stop_update' && state.activeTradingSignal) {
+          // Update the active signal's stop
+          const updated = { ...state.activeTradingSignal, stop: signal.stop };
+          set({
+            tradingSignals: newSignals,
+            activeTradingSignal: updated,
+          });
+        } else {
+          set({ tradingSignals: newSignals });
+        }
         break;
       }
 

@@ -137,6 +137,26 @@ pub struct ConfluenceEvent {
     pub x: f64,
 }
 
+/// Trading Signal from LVN strategy state machine
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TradingSignal {
+    pub timestamp: u64,
+    #[serde(rename = "signalType")]
+    pub signal_type: String, // "entry", "exit", "stop_update", "flatten"
+    pub direction: String,   // "long" or "short"
+    pub price: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "pnlPoints")]
+    pub pnl_points: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub x: f64,
+}
+
 /// Signal record for tracking outcomes
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignalRecord {
@@ -216,6 +236,7 @@ pub enum WsMessage {
     DeltaFlip(DeltaFlip),
     StackedImbalance(StackedImbalance),
     Confluence(ConfluenceEvent),
+    TradingSignal(TradingSignal),
     SessionStats(SessionStats),
     ReplayStatus(ReplayStatus),
     Connected { symbols: Vec<String>, mode: String },
