@@ -187,7 +187,7 @@ async fn fetch_trades(
                 .build(),
         )
         .await
-        .context("Failed to fetch historical data")?;
+        .with_context(|| format!("Failed to fetch historical data for {} from {} to {}", symbol, start, end))?;
 
     let mut trades = Vec::new();
 

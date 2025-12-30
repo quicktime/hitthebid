@@ -121,7 +121,7 @@ pub async fn run_databento_stream(
                 Some(levels)
             }
             Err(e) => {
-                warn!("Failed to fetch daily levels: {} - state machine will have no breakout levels", e);
+                warn!("Failed to fetch daily levels: {:?} - state machine will have no breakout levels", e);
                 None
             }
         }
