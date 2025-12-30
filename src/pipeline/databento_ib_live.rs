@@ -3,25 +3,33 @@
 //! Uses Databento's live streaming API for real-time tick data with accurate
 //! buy/sell attribution (delta), and IB for order execution.
 //!
+//! This module uses the STATE MACHINE approach for real-time LVN detection:
+//! 1. Detect breakouts using daily levels (PDH/PDL/VAH/VAL)
+//! 2. Profile impulse legs in real-time
+//! 3. Extract LVNs from those impulses
+//! 4. Hunt for retest with delta confirmation
+//!
 //! This is the production live trading module.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Timelike};
 use databento::{
-    dbn::{Record, Schema, SType, TradeMsg},
+    dbn::{Schema, SType, TradeMsg},
     live::Subscription,
     LiveClient,
 };
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tracing::{info, warn, error, debug};
 
 use ibapi::Client as IbClient;
 
 use crate::bars::Bar;
+use crate::trades::{Trade, Side};
 use super::ib_live::{IbConfig, IbOrderManager, create_nq_contract};
 use super::lvn_retest::Direction;
 use super::live_trader::{LiveConfig, LiveTrader, TradeAction};
+use super::state_machine::{StateMachineConfig, LiveDailyLevels};
+use super::precompute;
 
 /// Aggregates trades into 1-second bars with accurate delta
 struct BarAggregator {
@@ -122,22 +130,18 @@ impl BarAggregator {
             }
         }
     }
-
-    /// Flush any remaining bar data
-    fn flush(&mut self) -> Option<Bar> {
-        self.current_bar.take().map(|bar| bar.to_bar(&self.symbol))
-    }
 }
 
-/// Run live trading with Databento data and IB execution
+/// Run live trading with Databento data and IB execution (State Machine Mode)
 pub async fn run_databento_ib_live(
     api_key: String,
     config: LiveConfig,
+    sm_config: StateMachineConfig,
     ib_config: IbConfig,
     paper_mode: bool,
 ) -> Result<()> {
     info!("═══════════════════════════════════════════════════════════");
-    info!("     LIVE TRADING - DATABENTO DATA + IB EXECUTION          ");
+    info!("  LIVE TRADING - DATABENTO + IB (State Machine Mode)       ");
     info!("═══════════════════════════════════════════════════════════");
     info!("");
     info!("Data Source: Databento GLBX.MDP3 (tick-level with delta)");
@@ -152,14 +156,28 @@ pub async fn run_databento_ib_live(
         config.end_minute
     );
     info!("");
+    info!("State Machine Config:");
+    info!("  Breakout threshold: {:.1} pts", sm_config.breakout_threshold);
+    info!("  Min impulse size: {:.1} pts", sm_config.min_impulse_size);
+    info!("  Min impulse score: {}", sm_config.min_impulse_score);
+    info!("");
 
-    // Initialize trader (signal generation)
-    let mut trader = LiveTrader::new(config.clone());
+    // Initialize trader with state machine
+    let mut trader = LiveTrader::new_with_state_machine(config.clone(), sm_config);
 
-    // Load LVN levels
-    info!("Loading LVN levels from {:?}...", config.cache_dir);
-    let level_count = trader.load_lvn_levels(&config.cache_dir)?;
-    info!("Loaded {} LVN levels", level_count);
+    // Load daily levels from cache (most recent day)
+    info!("Loading daily levels from {:?}...", config.cache_dir);
+    match load_daily_levels_from_cache(&config.cache_dir) {
+        Ok(levels) => {
+            info!("Loaded daily levels: PDH={:.2} PDL={:.2} VAH={:.2} VAL={:.2}",
+                levels.pdh, levels.pdl, levels.vah, levels.val);
+            trader.set_daily_levels(levels);
+        }
+        Err(e) => {
+            warn!("Could not load daily levels from cache: {}", e);
+            warn!("State machine will wait for levels to be set manually or computed from session data");
+        }
+    }
 
     // Connect to IB for execution
     let ib_connection_url = format!("{}:{}", ib_config.host, ib_config.port);
@@ -219,6 +237,11 @@ pub async fn run_databento_ib_live(
     let mut bar_count = 0u64;
     let mut last_status_time = std::time::Instant::now();
 
+    // Track RTH session for computing next day's levels
+    let mut rth_high = f64::NEG_INFINITY;
+    let mut rth_low = f64::INFINITY;
+    let mut last_rth_update_hour: Option<u32> = None;
+
     // Process incoming trades
     while let Some(record) = databento_client.next_record().await? {
         if let Some(trade) = record.get::<TradeMsg>() {
@@ -239,6 +262,48 @@ pub async fn run_databento_ib_live(
             // Convert timestamp
             let timestamp = DateTime::from_timestamp_nanos(trade.hd.ts_event as i64);
 
+            // Get hour in ET (approximate: UTC-5)
+            let utc_hour = timestamp.hour();
+            let et_hour = (utc_hour + 24 - 5) % 24;
+
+            // Track RTH high/low (9:30-16:00 ET)
+            if et_hour >= 9 && et_hour < 16 {
+                rth_high = rth_high.max(price);
+                rth_low = rth_low.min(price);
+            }
+
+            // Update levels for evening session when we cross into post-market
+            // At 17:00 ET, use today's RTH as the new levels
+            if et_hour == 17 && last_rth_update_hour != Some(17) && rth_high > f64::NEG_INFINITY {
+                let evening_levels = LiveDailyLevels {
+                    date: timestamp.date_naive(),
+                    pdh: rth_high,
+                    pdl: rth_low,
+                    onh: rth_high,
+                    onl: rth_low,
+                    vah: rth_high - (rth_high - rth_low) * 0.3,
+                    val: rth_low + (rth_high - rth_low) * 0.3,
+                    session_high: rth_high,
+                    session_low: rth_low,
+                };
+                trader.set_daily_levels(evening_levels);
+                info!("Updated evening levels from RTH: PDH={:.2} PDL={:.2}", rth_high, rth_low);
+                last_rth_update_hour = Some(17);
+            }
+
+            // Feed trade to state machine if profiling impulse
+            if trader.is_profiling_impulse() {
+                let side = if is_buy { Side::Buy } else { Side::Sell };
+                let trade_data = Trade {
+                    ts_event: timestamp,
+                    price,
+                    size,
+                    side,
+                    symbol: symbol.clone(),
+                };
+                trader.process_trade(&trade_data);
+            }
+
             // Aggregate into 1-second bars
             if let Some(bar) = bar_aggregator.process_trade(timestamp, price, size, is_buy) {
                 bar_count += 1;
@@ -250,6 +315,9 @@ pub async fn run_databento_ib_live(
                     bar.open, bar.high, bar.low, bar.close,
                     bar.volume, bar.delta
                 );
+
+                // Check if we just started profiling (breakout bar)
+                let was_profiling = trader.is_profiling_impulse();
 
                 // Process bar through trader
                 if let Some(action) = trader.process_bar(&bar) {
@@ -288,6 +356,11 @@ pub async fn run_databento_ib_live(
                         TradeAction::SignalPending => {}
                     }
                 }
+
+                // If we just started profiling, the first bar's trades were already processed above
+                if !was_profiling && trader.is_profiling_impulse() {
+                    debug!("Started impulse profiling");
+                }
             }
 
             // Print status every 30 seconds
@@ -305,4 +378,39 @@ pub async fn run_databento_ib_live(
     info!("Final status: {}", trader.status());
 
     Ok(())
+}
+
+/// Load daily levels from the most recent cached day
+fn load_daily_levels_from_cache(cache_dir: &std::path::Path) -> Result<LiveDailyLevels> {
+    // Load all cached days
+    let days = precompute::load_all_cached(cache_dir, None)?;
+
+    if days.is_empty() {
+        anyhow::bail!("No cached data found");
+    }
+
+    // Get the most recent day
+    let yesterday = days.last().unwrap();
+
+    // Compute high/low from bars
+    let high = yesterday.bars_1s.iter()
+        .map(|b| b.high)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let low = yesterday.bars_1s.iter()
+        .map(|b| b.low)
+        .fold(f64::INFINITY, f64::min);
+
+    let today = chrono::Utc::now().date_naive();
+
+    Ok(LiveDailyLevels {
+        date: today,
+        pdh: high,
+        pdl: low,
+        onh: high, // Simplified: use session high/low
+        onl: low,
+        vah: high - (high - low) * 0.3, // Approximate VAH
+        val: low + (high - low) * 0.3,  // Approximate VAL
+        session_high: high,
+        session_low: low,
+    })
 }

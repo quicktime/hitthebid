@@ -850,12 +850,12 @@ enum Commands {
         #[arg(short, long, default_value = "cache_2025")]
         cache_dir: PathBuf,
 
-        /// Take profit in points
-        #[arg(long, default_value = "30")]
+        /// Take profit in points (500 = effectively disabled, rely on trailing stop)
+        #[arg(long, default_value = "500")]
         take_profit: f64,
 
         /// Trailing stop distance in points
-        #[arg(long, default_value = "6")]
+        #[arg(long, default_value = "4")]
         trailing_stop: f64,
 
         /// Stop buffer beyond LVN level in points
@@ -871,7 +871,7 @@ enum Commands {
         start_minute: u32,
 
         /// Trading end hour (ET, 24h format)
-        #[arg(long, default_value = "11")]
+        #[arg(long, default_value = "16")]
         end_hour: u32,
 
         /// Trading end minute
@@ -879,7 +879,7 @@ enum Commands {
         end_minute: u32,
 
         /// Minimum delta for absorption signal
-        #[arg(long, default_value = "60")]
+        #[arg(long, default_value = "5")]
         min_delta: i64,
 
         /// Maximum LVN volume ratio
@@ -901,6 +901,43 @@ enum Commands {
         /// Daily loss limit in points
         #[arg(long, default_value = "100")]
         daily_loss_limit: f64,
+
+        // --- State Machine Parameters ---
+
+        /// Breakout threshold in points beyond level
+        #[arg(long, default_value = "2.0")]
+        breakout_threshold: f64,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "15")]
+        min_impulse_size: f64,
+
+        /// Minimum impulse score (out of 5 criteria)
+        #[arg(long, default_value = "3")]
+        min_impulse_score: u8,
+
+        /// Maximum bars for impulse profiling
+        #[arg(long, default_value = "600")]
+        max_impulse_bars: usize,
+
+        /// Maximum bars to hunt for retest
+        #[arg(long, default_value = "1800")]
+        max_hunting_bars: usize,
+
+        /// Maximum retrace ratio before invalidation
+        #[arg(long, default_value = "0.7")]
+        max_retrace_ratio: f64,
+    },
+
+    /// Test Databento live data feed (no trading, just displays data)
+    DatabentoTest {
+        /// Symbol to subscribe to (e.g., NQH6 for March 2026 NQ)
+        #[arg(long, default_value = "NQH6")]
+        symbol: String,
+
+        /// Duration in seconds (0 = run indefinitely)
+        #[arg(long, default_value = "60")]
+        duration: u64,
     },
 }
 
@@ -1253,6 +1290,8 @@ async fn main() -> Result<()> {
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses, daily_loss_limit,
+            breakout_threshold, min_impulse_size, min_impulse_score,
+            max_impulse_bars, max_hunting_bars, max_retrace_ratio,
         } => {
             let paper_mode = mode.to_lowercase() != "live";
 
@@ -1295,11 +1334,104 @@ async fn main() -> Result<()> {
                 commission: 0.0,
             };
 
+            let sm_config = state_machine::StateMachineConfig {
+                breakout_threshold,
+                min_impulse_size,
+                min_impulse_score,
+                max_impulse_bars,
+                max_hunting_bars,
+                max_retrace_ratio,
+            };
+
             let ib_config = ib_live::IbConfig {
                 client_id,
                 ..ib_live::IbConfig::default()
             };
-            databento_ib_live::run_databento_ib_live(api_key, config, ib_config, paper_mode).await?;
+            databento_ib_live::run_databento_ib_live(api_key, config, sm_config, ib_config, paper_mode).await?;
+        }
+        Commands::DatabentoTest { symbol, duration } => {
+            use databento::{
+                dbn::{Schema, SType, TradeMsg},
+                live::Subscription,
+                LiveClient,
+            };
+            use chrono::DateTime;
+
+            let api_key = std::env::var("DATABENTO_API_KEY")
+                .context("DATABENTO_API_KEY not set")?;
+
+            println!("═══════════════════════════════════════════════════════════");
+            println!("           DATABENTO LIVE DATA TEST                        ");
+            println!("═══════════════════════════════════════════════════════════");
+            println!();
+            println!("Symbol: {}", symbol);
+            println!("Duration: {} seconds (0 = indefinite)", duration);
+            println!();
+
+            println!("Connecting to Databento...");
+            let mut client = LiveClient::builder()
+                .key(api_key)?
+                .dataset("GLBX.MDP3")
+                .build()
+                .await
+                .context("Failed to connect to Databento")?;
+
+            println!("Connected! Subscribing to {}...", symbol);
+
+            let subscription = Subscription::builder()
+                .symbols(vec![symbol.clone()])
+                .schema(Schema::Trades)
+                .stype_in(SType::RawSymbol)
+                .build();
+
+            client.subscribe(subscription).await
+                .context("Failed to subscribe")?;
+
+            client.start().await.context("Failed to start stream")?;
+
+            println!("Subscribed! Waiting for trades...\n");
+
+            let start = std::time::Instant::now();
+            let mut trade_count = 0u64;
+            let mut total_volume = 0u64;
+
+            while let Some(record) = client.next_record().await? {
+                if let Some(trade) = record.get::<TradeMsg>() {
+                    trade_count += 1;
+                    let price = trade.price as f64 / 1_000_000_000.0;
+                    let size = trade.size as u64;
+                    total_volume += size;
+
+                    let side = match trade.side as u8 {
+                        b'A' | b'a' => "BUY ",
+                        b'B' | b'b' => "SELL",
+                        _ => "??? ",
+                    };
+
+                    let ts = DateTime::from_timestamp_nanos(trade.hd.ts_event as i64);
+
+                    println!(
+                        "[{}] {} {:>2} @ {:.2}  (total: {} trades, {} contracts)",
+                        ts.format("%H:%M:%S%.3f"),
+                        side,
+                        size,
+                        price,
+                        trade_count,
+                        total_volume
+                    );
+                }
+
+                // Check duration limit
+                if duration > 0 && start.elapsed().as_secs() >= duration {
+                    println!("\nDuration limit reached.");
+                    break;
+                }
+            }
+
+            println!("\n═══════════════════════════════════════════════════════════");
+            println!("Total trades: {}", trade_count);
+            println!("Total volume: {} contracts", total_volume);
+            println!("═══════════════════════════════════════════════════════════");
         }
     }
 
