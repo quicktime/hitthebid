@@ -7,11 +7,11 @@
 //! 4. RESET - After trade, clear ALL LVNs from that impulse and return to waiting
 
 use crate::bars::Bar;
-use crate::impulse::{ImpulseDirection, ImpulseLeg, RealTimeImpulseBuilder};
+use crate::impulse::{ImpulseDirection, RealTimeImpulseBuilder};
 use crate::levels::DailyLevels;
 use crate::lvn::LvnLevel;
 use crate::trades::Trade;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -430,7 +430,7 @@ impl TradingStateMachine {
     }
 
     /// Process bar while hunting for LVN retest
-    fn process_hunting(&mut self, bar: &Bar) -> Option<StateTransition> {
+    fn process_hunting(&mut self, _bar: &Bar) -> Option<StateTransition> {
         let Some(start_bar) = self.hunting_start_bar else {
             // Should not happen
             self.state = TradingState::WaitingForBreakout;

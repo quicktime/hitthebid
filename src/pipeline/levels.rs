@@ -1,5 +1,5 @@
 use crate::bars::Bar;
-use chrono::{DateTime, NaiveDate, Timelike, Utc};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 

@@ -280,7 +280,7 @@ impl BracketOrder {
         exchange: &str,
         quantity: i32,
         lvn_level: f64,
-        stop_buffer: f64,
+        _stop_buffer: f64,
     ) -> Self {
         let entry = Order::market(symbol, exchange, OrderSide::Buy, quantity);
 
@@ -307,7 +307,7 @@ impl BracketOrder {
         exchange: &str,
         quantity: i32,
         lvn_level: f64,
-        stop_buffer: f64,
+        _stop_buffer: f64,
     ) -> Self {
         let entry = Order::market(symbol, exchange, OrderSide::Sell, quantity);
 

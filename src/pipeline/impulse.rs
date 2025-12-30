@@ -207,7 +207,7 @@ fn find_swing_lows(bars: &[Bar], lookback: usize) -> Vec<f64> {
 
 fn check_broke_swing(
     direction: ImpulseDirection,
-    start_price: f64,
+    _start_price: f64,
     end_price: f64,
     swing_highs: &[f64],
     swing_lows: &[f64],

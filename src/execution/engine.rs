@@ -6,7 +6,7 @@ use tracing::{info, warn, debug};
 use uuid::Uuid;
 
 use super::config::{ExecutionConfig, ExecutionMode};
-use super::connection::{RithmicConnection, RithmicEvent, ConnectionState};
+use super::connection::{RithmicConnection, ConnectionState};
 use super::order::{OrderSide, BracketOrder, BracketState};
 use super::position::PositionManager;
 
@@ -194,7 +194,7 @@ impl ExecutionEngine {
 
         // Submit entry order
         let side_str = signal.side.to_string();
-        let order_id = self.connection.submit_market_order(
+        let _order_id = self.connection.submit_market_order(
             &self.config.symbol,
             &side_str,
             quantity,

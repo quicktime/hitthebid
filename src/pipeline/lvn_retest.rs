@@ -392,7 +392,7 @@ impl LvnSignalGenerator {
     }
 
     /// Check for trend continuation signal at retesting LVN
-    fn check_for_signal(&self, bar_idx: usize, bar: &Bar) -> Option<(i64, Direction, String)> {
+    fn check_for_signal(&self, _bar_idx: usize, bar: &Bar) -> Option<(i64, Direction, String)> {
         // First check if we have any retesting levels
         let retesting_count = self.tracked_levels.values()
             .filter(|l| l.state == LevelState::Retesting)
@@ -658,7 +658,7 @@ impl LvnRetestBacktester {
 
         for level in levels.values_mut() {
             let distance = (price - level.price).abs();
-            let prev_distance = (prev_price - level.price).abs();
+            let _prev_distance = (prev_price - level.price).abs();
 
             match level.state {
                 LevelState::Untouched => {

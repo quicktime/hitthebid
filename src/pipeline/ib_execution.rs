@@ -1,22 +1,20 @@
-//! Live Trading via Interactive Brokers TWS API
+//! Interactive Brokers Order Execution
 //!
-//! Connects to IB TWS or Gateway for order execution.
-//! Uses the same signal generation logic as the backtester and Rithmic module.
+//! Provides order management and execution via IB TWS or Gateway.
+//! Used by databento_ib_live.rs for live trading.
 
 use anyhow::{Result, Context};
 use chrono::{DateTime, Utc, Timelike};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, warn, error, debug};
 
 use ibapi::Client;
 use ibapi::contracts::{Contract, SecurityType};
-use ibapi::orders::{Order, Action, order_builder};
+use ibapi::orders::{Action, order_builder};
 
 use crate::bars::Bar;
-use super::lvn_retest::{LvnRetestConfig, LvnSignalGenerator, Direction, LvnSignal};
-use super::precompute;
-use super::live_trader::{LiveConfig, LiveTrader, TradeAction, TradingSummary};
+use super::lvn_retest::Direction;
+use super::trader::{LiveConfig, LiveTrader, TradeAction};
 
 /// IB-specific configuration
 #[derive(Debug, Clone)]
@@ -39,116 +37,21 @@ impl Default for IbConfig {
     }
 }
 
-/// Aggregates trades into 1-second bars (same as live_trader)
-struct BarAggregator {
-    current_bar: Option<BarBuilder>,
-}
-
-struct BarBuilder {
-    timestamp: DateTime<Utc>,
-    open: f64,
-    high: f64,
-    low: f64,
-    close: f64,
-    volume: u64,
-    buy_volume: u64,
-    sell_volume: u64,
-    trade_count: u64,
-    symbol: String,
-}
-
-impl BarBuilder {
-    fn new(timestamp: DateTime<Utc>, price: f64, size: u64, is_buy: bool, symbol: String) -> Self {
-        let (buy_vol, sell_vol) = if is_buy { (size, 0) } else { (0, size) };
-        Self {
-            timestamp,
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-            volume: size,
-            buy_volume: buy_vol,
-            sell_volume: sell_vol,
-            trade_count: 1,
-            symbol,
-        }
-    }
-
-    fn add_trade(&mut self, price: f64, size: u64, is_buy: bool) {
-        self.high = self.high.max(price);
-        self.low = self.low.min(price);
-        self.close = price;
-        self.volume += size;
-        if is_buy {
-            self.buy_volume += size;
-        } else {
-            self.sell_volume += size;
-        }
-        self.trade_count += 1;
-    }
-
-    fn to_bar(&self) -> Bar {
-        Bar {
-            timestamp: self.timestamp,
-            open: self.open,
-            high: self.high,
-            low: self.low,
-            close: self.close,
-            volume: self.volume,
-            buy_volume: self.buy_volume,
-            sell_volume: self.sell_volume,
-            delta: self.buy_volume as i64 - self.sell_volume as i64,
-            trade_count: self.trade_count,
-            symbol: self.symbol.clone(),
-        }
-    }
-}
-
-impl BarAggregator {
-    fn new() -> Self {
-        Self { current_bar: None }
-    }
-
-    fn process_trade(
-        &mut self,
-        timestamp: DateTime<Utc>,
-        price: f64,
-        size: u64,
-        is_buy: bool,
-        symbol: &str,
-    ) -> Option<Bar> {
-        let second = timestamp.timestamp();
-
-        match &mut self.current_bar {
-            Some(bar) => {
-                let bar_second = bar.timestamp.timestamp();
-                if second > bar_second {
-                    let completed = bar.to_bar();
-                    self.current_bar = Some(BarBuilder::new(timestamp, price, size, is_buy, symbol.to_string()));
-                    Some(completed)
-                } else {
-                    bar.add_trade(price, size, is_buy);
-                    None
-                }
-            }
-            None => {
-                self.current_bar = Some(BarBuilder::new(timestamp, price, size, is_buy, symbol.to_string()));
-                None
-            }
-        }
-    }
-}
-
-/// Create NQ futures contract for IB
+/// Create NQ futures contract for IB with default symbol
 pub fn create_nq_contract() -> Contract {
+    create_nq_contract_with_symbol("NQH6")
+}
+
+/// Create NQ futures contract for IB with specified contract symbol
+/// Symbol format: NQ + month code + year digit (e.g., NQH6 = March 2026)
+/// Month codes: H=Mar, M=Jun, U=Sep, Z=Dec
+pub fn create_nq_contract_with_symbol(local_symbol: &str) -> Contract {
     Contract {
         symbol: "NQ".to_string(),
         security_type: SecurityType::Future,
         exchange: "CME".to_string(),
         currency: "USD".to_string(),
-        // March 2026 front month (as of Dec 2025)
-        local_symbol: "NQH6".to_string(),
-        // Required for historical data requests
+        local_symbol: local_symbol.to_string(),
         primary_exchange: "CME".to_string(),
         ..Default::default()
     }
@@ -366,7 +269,6 @@ pub fn run_ib_live(config: LiveConfig, ib_config: IbConfig, paper_mode: bool) ->
     info!("═══════════════════════════════════════════════════════════");
     info!("");
 
-    let mut bar_aggregator = BarAggregator::new();
     let mut last_status_time = std::time::Instant::now();
 
     // Main trading loop - process real-time bars
@@ -574,156 +476,6 @@ pub fn run_ib_data_test(symbol: &str, duration_secs: u64) -> Result<()> {
     info!("");
     info!("Data test complete.");
     Ok(())
-}
-
-/// Run IB live trading using historical data polling (no realtime subscription needed)
-/// This is useful for testing the execution layer without CME market data subscription
-pub fn run_ib_polling_mode(config: LiveConfig, ib_config: IbConfig) -> Result<()> {
-    use ibapi::market_data::historical::{BarSize as HistBarSize, ToDuration, WhatToShow as HistWhatToShow};
-
-    info!("═══════════════════════════════════════════════════════════");
-    info!("        IB TRADING - HISTORICAL POLLING MODE               ");
-    info!("═══════════════════════════════════════════════════════════");
-    info!("");
-    info!("⚠️  Using historical data polling (15-min delayed data)");
-    info!("   This is for TESTING ONLY - not suitable for live trading");
-    info!("");
-    info!("Symbol: {} on {}", config.symbol, config.exchange);
-    info!("Contracts: {}", config.contracts);
-    info!("");
-
-    // Initialize trader
-    let mut trader = LiveTrader::new(config.clone());
-
-    // Load LVN levels
-    info!("Loading LVN levels from {:?}...", config.cache_dir);
-    let level_count = trader.load_lvn_levels(&config.cache_dir)?;
-    info!("Loaded {} LVN levels", level_count);
-
-    // Connect to IB
-    let connection_url = format!("{}:{}", ib_config.host, ib_config.port);
-    let client = Client::connect(&connection_url, ib_config.client_id)
-        .context("Failed to connect to IB")?;
-
-    let client = Arc::new(client);
-    info!("✓ Connected to IB");
-
-    // Create contract and order manager
-    let contract = create_nq_contract();
-    let mut order_manager = IbOrderManager::new(client.clone(), contract.clone());
-
-    // Track state
-    let mut current_direction: Option<Direction> = None;
-    let mut last_bar_time: Option<String> = None;
-    let mut bar_count = 0;
-
-    info!("");
-    info!("Starting polling loop (5-second intervals)...");
-    info!("Press Ctrl+C to stop");
-    info!("");
-
-    loop {
-        // Request last 5 minutes of historical data (15-min delayed)
-        // We'll dedupe bars we've already processed
-        let hist_result = client.historical_data(
-            &contract,
-            None,
-            300_i32.seconds(), // 5 minutes
-            HistBarSize::Sec5,
-            HistWhatToShow::Trades,
-            true, // RTH only (required for delayed data to work)
-        );
-
-        match hist_result {
-            Ok(data) => {
-                // Process only new bars
-                for hist_bar in &data.bars {
-                    let bar_time = format!("{}", hist_bar.date);
-
-                    // Skip if we've already processed this bar
-                    if let Some(ref last) = last_bar_time {
-                        if &bar_time <= last {
-                            continue;
-                        }
-                    }
-
-                    last_bar_time = Some(bar_time.clone());
-                    bar_count += 1;
-
-                    // Convert to our bar format
-                    let timestamp = DateTime::from_timestamp(
-                        hist_bar.date.unix_timestamp(),
-                        0
-                    ).unwrap_or_else(|| Utc::now());
-
-                    let bar = Bar {
-                        timestamp,
-                        open: hist_bar.open,
-                        high: hist_bar.high,
-                        low: hist_bar.low,
-                        close: hist_bar.close,
-                        volume: hist_bar.volume as u64,
-                        buy_volume: (hist_bar.volume as u64) / 2, // Approximate
-                        sell_volume: (hist_bar.volume as u64) / 2,
-                        delta: 0, // Not available
-                        trade_count: 1,
-                        symbol: config.symbol.clone(),
-                    };
-
-                    debug!("Bar #{}: {} | Price: {:.2} | V: {}",
-                        bar_count, bar_time, bar.close, bar.volume);
-
-                    // Process bar through trader
-                    if let Some(action) = trader.process_bar(&bar) {
-                        match action {
-                            TradeAction::Enter { direction, price, stop, target, contracts } => {
-                                current_direction = Some(direction);
-                                info!("SIGNAL: {} @ {:.2} | Stop: {:.2} | Target: {:.2}",
-                                    if matches!(direction, Direction::Long) { "BUY" } else { "SELL" },
-                                    price, stop, target
-                                );
-
-                                // Submit bracket order
-                                if let Err(e) = order_manager.submit_bracket_order(
-                                    direction, contracts, stop, target,
-                                ) {
-                                    error!("Order failed: {}", e);
-                                }
-                            }
-                            TradeAction::Exit { pnl_points, reason, .. } => {
-                                info!("EXIT: {} | P&L: {:.2} pts", reason, pnl_points);
-                                order_manager.clear_orders();
-                                current_direction = None;
-                            }
-                            TradeAction::UpdateStop { new_stop } => {
-                                if let Some(dir) = current_direction {
-                                    debug!("Updating stop to {:.2}", new_stop);
-                                    let _ = order_manager.modify_stop(new_stop, config.contracts, dir);
-                                }
-                            }
-                            TradeAction::FlattenAll { reason } => {
-                                warn!("Flatten: {}", reason);
-                                let _ = order_manager.flatten_all();
-                                current_direction = None;
-                            }
-                            TradeAction::SignalPending => {}
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("Historical data error: {}", e);
-            }
-        }
-
-        // Status every 30 bars
-        if bar_count > 0 && bar_count % 30 == 0 {
-            info!("{}", trader.status());
-        }
-
-        // Wait before next poll
-        std::thread::sleep(std::time::Duration::from_secs(5));
-    }
 }
 
 /// Test NQ futures contract specifically

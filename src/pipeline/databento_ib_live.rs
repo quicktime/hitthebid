@@ -25,9 +25,9 @@ use ibapi::Client as IbClient;
 
 use crate::bars::Bar;
 use crate::trades::{Trade, Side};
-use super::ib_live::{IbConfig, IbOrderManager, create_nq_contract};
+use super::ib_execution::{IbConfig, IbOrderManager, create_nq_contract_with_symbol};
 use super::lvn_retest::Direction;
-use super::live_trader::{LiveConfig, LiveTrader, TradeAction};
+use super::trader::{LiveConfig, LiveTrader, TradeAction};
 use super::state_machine::{StateMachineConfig, LiveDailyLevels};
 use super::precompute;
 
@@ -135,6 +135,7 @@ impl BarAggregator {
 /// Run live trading with Databento data and IB execution (State Machine Mode)
 pub async fn run_databento_ib_live(
     api_key: String,
+    contract_symbol: String,
     config: LiveConfig,
     sm_config: StateMachineConfig,
     ib_config: IbConfig,
@@ -146,7 +147,7 @@ pub async fn run_databento_ib_live(
     info!("");
     info!("Data Source: Databento GLBX.MDP3 (tick-level with delta)");
     info!("Execution: Interactive Brokers");
-    info!("Symbol: {} on {}", config.symbol, config.exchange);
+    info!("Contract: {} ({} on {})", contract_symbol, config.symbol, config.exchange);
     info!("Contracts: {}", config.contracts);
     info!("Mode: {}", if paper_mode { "PAPER" } else { "LIVE" });
     info!("Trading Hours: {:02}:{:02} - {:02}:{:02} ET",
@@ -190,7 +191,7 @@ pub async fn run_databento_ib_live(
     info!("Connected to IB");
 
     // Create contract and order manager
-    let contract = create_nq_contract();
+    let contract = create_nq_contract_with_symbol(&contract_symbol);
     let mut order_manager = IbOrderManager::new(ib_client.clone(), contract);
 
     // Connect to Databento for live data
@@ -205,11 +206,9 @@ pub async fn run_databento_ib_live(
 
     info!("Connected to Databento");
 
-    // Subscribe to NQ trades
-    // Use the specific front month contract (March 2026)
-    let symbol = "NQH6".to_string(); // NQ March 2026
+    // Subscribe to NQ trades using the specified contract
     let subscription = Subscription::builder()
-        .symbols(vec![symbol.clone()])
+        .symbols(vec![contract_symbol.clone()])
         .schema(Schema::Trades)
         .stype_in(SType::RawSymbol)
         .build();
@@ -219,7 +218,7 @@ pub async fn run_databento_ib_live(
         .await
         .context("Failed to subscribe to Databento")?;
 
-    info!("Subscribed to: {}", symbol);
+    info!("Subscribed to: {}", contract_symbol);
 
     // Start streaming
     databento_client.start().await.context("Failed to start Databento stream")?;
@@ -299,7 +298,7 @@ pub async fn run_databento_ib_live(
                     price,
                     size,
                     side,
-                    symbol: symbol.clone(),
+                    symbol: contract_symbol.clone(),
                 };
                 trader.process_trade(&trade_data);
             }

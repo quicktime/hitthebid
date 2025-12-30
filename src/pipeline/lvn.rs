@@ -1,5 +1,5 @@
 use crate::impulse::{ImpulseDirection, ImpulseLeg};
-use crate::trades::{Side, Trade};
+use crate::trades::Trade;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

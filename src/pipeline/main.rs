@@ -1,23 +1,21 @@
-mod trades;
 mod bars;
-mod levels;
-mod impulse;
-mod lvn;
-mod supabase;
-mod replay;
 mod backtest;
-mod market_state;
-mod three_element_backtest;
-mod precompute;
-mod lvn_retest;
-mod paper_trading;
-mod monte_carlo;
-mod live_trading;
-mod replay_trading;
-mod live_trader;
-mod ib_live;
 mod databento_ib_live;
+mod ib_execution;
+mod impulse;
+mod levels;
+mod lvn;
+mod trader;
+mod lvn_retest;
+mod market_state;
+mod monte_carlo;
+mod precompute;
+mod replay;
+mod replay_trading;
 mod state_machine;
+mod supabase;
+mod three_element_backtest;
+mod trades;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -316,77 +314,6 @@ enum Commands {
         reverse_delta: i64,
     },
 
-    /// Paper trade validation - replay historical data to validate strategy
-    PaperTrade {
-        /// Cache directory for precomputed data
-        #[arg(short, long, default_value = "cache")]
-        cache_dir: PathBuf,
-
-        /// State file to persist paper trading state
-        #[arg(long, default_value = "paper_trading_state.json")]
-        state_file: PathBuf,
-
-        /// Log file for signals and trades
-        #[arg(long, default_value = "paper_trading.log")]
-        log_file: PathBuf,
-
-        /// Process only a specific date (YYYYMMDD format)
-        #[arg(short = 'D', long)]
-        date: Option<String>,
-
-        /// Level tolerance in points
-        #[arg(long, default_value = "2.5")]
-        level_tolerance: f64,
-
-        /// Minimum delta for signal
-        #[arg(long, default_value = "75")]
-        min_delta: i64,
-
-        /// Maximum range for signal
-        #[arg(long, default_value = "2.5")]
-        max_range: f64,
-
-        /// Take profit in points
-        #[arg(long, default_value = "35")]
-        take_profit: f64,
-
-        /// Trailing stop distance
-        #[arg(long, default_value = "12")]
-        trailing_stop: f64,
-
-        /// Structure stop buffer
-        #[arg(long, default_value = "0.5")]
-        stop_buffer: f64,
-
-        /// Max LVN volume ratio
-        #[arg(long, default_value = "0.15")]
-        max_lvn_ratio: f64,
-
-        /// Trading start hour (ET)
-        #[arg(long, default_value = "9")]
-        start_hour: u32,
-
-        /// Trading start minute
-        #[arg(long, default_value = "30")]
-        start_minute: u32,
-
-        /// Trading end hour (ET)
-        #[arg(long, default_value = "11")]
-        end_hour: u32,
-
-        /// Trading end minute
-        #[arg(long, default_value = "0")]
-        end_minute: u32,
-
-        /// Replay speed multiplier (1 = realtime, 0 = as fast as possible)
-        #[arg(long, default_value = "0")]
-        speed: u32,
-
-        /// Show live status updates
-        #[arg(long)]
-        live_status: bool,
-    },
-
     /// Monte Carlo simulation for Apex eval survival
     MonteCarlo {
         /// Number of simulations to run
@@ -399,77 +326,6 @@ enum Commands {
         /// Number of simulations to run
         #[arg(short, long, default_value = "100000")]
         simulations: usize,
-    },
-
-    /// Automated trading with Rithmic API (paper or live)
-    Trade {
-        /// Trading mode: simulation, paper, or live
-        #[arg(long, default_value = "simulation")]
-        mode: String,
-
-        /// Number of contracts to trade
-        #[arg(long, default_value = "1")]
-        contracts: i32,
-
-        /// Daily loss limit in points (stops trading when reached)
-        #[arg(long, default_value = "100")]
-        daily_loss_limit: f64,
-
-        /// Take profit in points (set high to let trailing stop work)
-        #[arg(long, default_value = "500")]
-        take_profit: f64,
-
-        /// Trailing stop distance in points
-        #[arg(long, default_value = "6")]
-        trailing_stop: f64,
-
-        /// Stop buffer beyond LVN level in points
-        #[arg(long, default_value = "1.5")]
-        stop_buffer: f64,
-
-        /// Cache directory for precomputed data (for replay mode)
-        #[arg(short, long, default_value = "cache_2025")]
-        cache_dir: PathBuf,
-
-        /// Process only a specific date (YYYYMMDD format) for replay
-        #[arg(short = 'D', long)]
-        date: Option<String>,
-
-        /// Trading start hour (ET, 24h format)
-        #[arg(long, default_value = "9")]
-        start_hour: u32,
-
-        /// Trading start minute
-        #[arg(long, default_value = "30")]
-        start_minute: u32,
-
-        /// Trading end hour (ET, 24h format)
-        #[arg(long, default_value = "11")]
-        end_hour: u32,
-
-        /// Trading end minute
-        #[arg(long, default_value = "0")]
-        end_minute: u32,
-
-        /// Minimum delta for absorption signal
-        #[arg(long, default_value = "60")]
-        min_delta: i64,
-
-        /// Max LVN volume ratio (quality filter)
-        #[arg(long, default_value = "0.4")]
-        max_lvn_ratio: f64,
-
-        /// Level tolerance in points
-        #[arg(long, default_value = "3")]
-        level_tolerance: f64,
-
-        /// Starting balance for prop firm tracking
-        #[arg(long, default_value = "30000")]
-        starting_balance: f64,
-
-        /// Replay speed (1 = realtime, 20 = 20x speed, 0 = max speed)
-        #[arg(long, default_value = "0")]
-        speed: u32,
     },
 
     /// Replay test - validates live trading code against historical data
@@ -626,89 +482,6 @@ enum Commands {
         min_impulse_score: u8,
     },
 
-    /// Live trading (paper or live mode) - uses IB Gateway
-    Live {
-        /// Trading mode: "paper" or "live"
-        #[arg(long, default_value = "paper")]
-        mode: String,
-
-        /// Symbol to trade (without exchange suffix)
-        #[arg(long, default_value = "NQ")]
-        symbol: String,
-
-        /// Exchange
-        #[arg(long, default_value = "CME")]
-        exchange: String,
-
-        /// Number of contracts
-        #[arg(long, default_value = "1")]
-        contracts: i32,
-
-        /// Cache directory for LVN levels
-        #[arg(short, long, default_value = "cache_2025")]
-        cache_dir: PathBuf,
-
-        /// Take profit in points (set very high to use trailing stop only)
-        #[arg(long, default_value = "500")]
-        take_profit: f64,
-
-        /// Trailing stop distance in points
-        #[arg(long, default_value = "4")]
-        trailing_stop: f64,
-
-        /// Stop buffer beyond LVN level in points
-        #[arg(long, default_value = "1.5")]
-        stop_buffer: f64,
-
-        /// Trading start hour (ET, 24h format)
-        #[arg(long, default_value = "9")]
-        start_hour: u32,
-
-        /// Trading start minute
-        #[arg(long, default_value = "30")]
-        start_minute: u32,
-
-        /// Trading end hour (ET, 24h format)
-        #[arg(long, default_value = "16")]
-        end_hour: u32,
-
-        /// Trading end minute
-        #[arg(long, default_value = "0")]
-        end_minute: u32,
-
-        /// Minimum delta for absorption signal
-        #[arg(long, default_value = "5")]
-        min_delta: i64,
-
-        /// Maximum LVN volume ratio
-        #[arg(long, default_value = "0.4")]
-        max_lvn_ratio: f64,
-
-        /// Level tolerance in points
-        #[arg(long, default_value = "3.0")]
-        level_tolerance: f64,
-
-        /// Starting balance for tracking
-        #[arg(long, default_value = "30000")]
-        starting_balance: f64,
-
-        /// Max losing trades per day (0 = disabled)
-        #[arg(long, default_value = "3")]
-        max_daily_losses: i32,
-
-        /// Daily loss limit in points
-        #[arg(long, default_value = "100")]
-        daily_loss_limit: f64,
-
-        /// Slippage per trade in points (for cost estimation)
-        #[arg(long, default_value = "0.0")]
-        slippage: f64,
-
-        /// Commission per round-trip in dollars
-        #[arg(long, default_value = "0.0")]
-        commission: f64,
-    },
-
     /// Test Interactive Brokers connection
     IbTest,
 
@@ -809,34 +582,15 @@ enum Commands {
         duration: u64,
     },
 
-    /// IB polling mode (uses historical data, no realtime subscription needed)
-    IbPolling {
-        /// Number of contracts
-        #[arg(long, default_value = "1")]
-        contracts: i32,
-
-        /// Cache directory for LVN levels
-        #[arg(short, long, default_value = "cache_2025")]
-        cache_dir: PathBuf,
-
-        /// Take profit in points
-        #[arg(long, default_value = "30")]
-        take_profit: f64,
-
-        /// Trailing stop distance in points
-        #[arg(long, default_value = "6")]
-        trailing_stop: f64,
-
-        /// Stop buffer beyond LVN level in points
-        #[arg(long, default_value = "1.5")]
-        stop_buffer: f64,
-    },
-
     /// Live trading with Databento data + IB execution (production mode)
     DatabentoIbLive {
         /// Trading mode: "paper" or "live"
         #[arg(long, default_value = "paper")]
         mode: String,
+
+        /// Contract symbol (e.g., NQH6 for March 2026, NQM6 for June 2026)
+        #[arg(long, default_value = "NQH6")]
+        contract_symbol: String,
 
         /// IB Client ID (must be unique per connection)
         #[arg(long, default_value = "2")]
@@ -1030,43 +784,11 @@ async fn main() -> Result<()> {
                 reverse_exit, reverse_delta,
             )?;
         }
-        Commands::PaperTrade {
-            cache_dir, state_file, log_file, date,
-            level_tolerance, min_delta, max_range,
-            take_profit, trailing_stop, stop_buffer, max_lvn_ratio,
-            start_hour, start_minute, end_hour, end_minute,
-            speed, live_status,
-        } => {
-            run_paper_trade(
-                cache_dir, state_file, log_file, date,
-                level_tolerance, min_delta, max_range,
-                take_profit, trailing_stop, stop_buffer, max_lvn_ratio,
-                start_hour, start_minute, end_hour, end_minute,
-                speed, live_status,
-            )?;
-        }
         Commands::MonteCarlo { simulations: _ } => {
             monte_carlo::run_monte_carlo();
         }
         Commands::MonteCarloEtf { simulations: _ } => {
             monte_carlo::run_etf_monte_carlo();
-        }
-        Commands::Trade {
-            mode, contracts, daily_loss_limit,
-            take_profit, trailing_stop, stop_buffer,
-            cache_dir, date,
-            start_hour, start_minute, end_hour, end_minute,
-            min_delta, max_lvn_ratio, level_tolerance,
-            starting_balance, speed,
-        } => {
-            run_trade(
-                mode, contracts, daily_loss_limit,
-                take_profit, trailing_stop, stop_buffer,
-                cache_dir, date,
-                start_hour, start_minute, end_hour, end_minute,
-                min_delta, max_lvn_ratio, level_tolerance,
-                starting_balance, speed,
-            ).await?;
         }
         Commands::ReplayTest {
             cache_dir, date,
@@ -1077,7 +799,7 @@ async fn main() -> Result<()> {
             slippage, commission,
         } => {
             // Use same LiveConfig as live trading - validates exact same code path
-            let config = live_trader::LiveConfig {
+            let config = trader::LiveConfig {
                 symbol: "NQ".to_string(),  // Not used in replay
                 exchange: "CME".to_string(), // Not used in replay
                 contracts,
@@ -1112,7 +834,7 @@ async fn main() -> Result<()> {
             max_impulse_bars, max_hunting_bars, max_retrace_ratio,
             min_impulse_score,
         } => {
-            let config = live_trader::LiveConfig {
+            let config = trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1146,56 +868,8 @@ async fn main() -> Result<()> {
 
             replay_trading::run_replay_realtime(cache_dir, date, config, sm_config).await?;
         }
-        Commands::Live {
-            mode, symbol, exchange, contracts, cache_dir,
-            take_profit, trailing_stop, stop_buffer,
-            start_hour, start_minute, end_hour, end_minute,
-            min_delta, max_lvn_ratio, level_tolerance,
-            starting_balance, max_daily_losses, daily_loss_limit,
-            slippage, commission,
-        } => {
-            let paper_mode = mode.to_lowercase() != "live";
-
-            if !paper_mode {
-                println!("\n⚠️  LIVE TRADING MODE ⚠️");
-                println!("This will execute REAL trades with REAL money.");
-                println!("Type 'CONFIRM' to proceed:");
-
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input)?;
-                if input.trim() != "CONFIRM" {
-                    println!("Aborted.");
-                    return Ok(());
-                }
-            }
-
-            let config = live_trader::LiveConfig {
-                symbol,
-                exchange,
-                contracts,
-                cache_dir,
-                take_profit,
-                trailing_stop,
-                stop_buffer,
-                start_hour,
-                start_minute,
-                end_hour,
-                end_minute,
-                min_delta,
-                max_lvn_ratio,
-                level_tolerance,
-                starting_balance,
-                max_daily_losses,
-                daily_loss_limit,
-                point_value: 20.0, // NQ point value
-                slippage,
-                commission,
-            };
-
-            live_trader::run_live(config, paper_mode).await?;
-        }
         Commands::IbTest => {
-            ib_live::run_ib_demo()?;
+            ib_execution::run_ib_demo()?;
         }
         Commands::IbLive {
             mode, host, port, client_id, contracts, cache_dir,
@@ -1219,7 +893,7 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let config = live_trader::LiveConfig {
+            let config = trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1242,51 +916,22 @@ async fn main() -> Result<()> {
                 commission: 0.0,
             };
 
-            let ib_config = ib_live::IbConfig {
+            let ib_config = ib_execution::IbConfig {
                 host,
                 port,
                 client_id,
             };
 
-            ib_live::run_ib_live(config, ib_config, paper_mode)?;
+            ib_execution::run_ib_live(config, ib_config, paper_mode)?;
         }
         Commands::IbDataTest { symbol, duration } => {
-            ib_live::run_ib_data_test(&symbol, duration)?;
+            ib_execution::run_ib_data_test(&symbol, duration)?;
         }
         Commands::IbFuturesTest { duration } => {
-            ib_live::run_ib_futures_test(duration)?;
-        }
-        Commands::IbPolling {
-            contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
-        } => {
-            let config = live_trader::LiveConfig {
-                symbol: "NQ".to_string(),
-                exchange: "CME".to_string(),
-                contracts,
-                cache_dir,
-                take_profit,
-                trailing_stop,
-                stop_buffer,
-                start_hour: 9,
-                start_minute: 30,
-                end_hour: 16,
-                end_minute: 0,
-                min_delta: 60,
-                max_lvn_ratio: 0.4,
-                level_tolerance: 3.0,
-                starting_balance: 30000.0,
-                max_daily_losses: 3,
-                daily_loss_limit: 100.0,
-                point_value: 20.0,
-                slippage: 0.0,
-                commission: 0.0,
-            };
-
-            let ib_config = ib_live::IbConfig::default();
-            ib_live::run_ib_polling_mode(config, ib_config)?;
+            ib_execution::run_ib_futures_test(duration)?;
         }
         Commands::DatabentoIbLive {
-            mode, client_id, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+            mode, contract_symbol, client_id, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses, daily_loss_limit,
@@ -1311,7 +956,7 @@ async fn main() -> Result<()> {
             let api_key = std::env::var("DATABENTO_API_KEY")
                 .context("DATABENTO_API_KEY not set")?;
 
-            let config = live_trader::LiveConfig {
+            let config = trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1343,11 +988,18 @@ async fn main() -> Result<()> {
                 max_retrace_ratio,
             };
 
-            let ib_config = ib_live::IbConfig {
+            let ib_config = ib_execution::IbConfig {
                 client_id,
-                ..ib_live::IbConfig::default()
+                ..ib_execution::IbConfig::default()
             };
-            databento_ib_live::run_databento_ib_live(api_key, config, sm_config, ib_config, paper_mode).await?;
+            databento_ib_live::run_databento_ib_live(
+                api_key,
+                contract_symbol,
+                config,
+                sm_config,
+                ib_config,
+                paper_mode
+            ).await?;
         }
         Commands::DatabentoTest { symbol, duration } => {
             use databento::{
@@ -2096,200 +1748,4 @@ fn run_lvn_retest(
 
     info!("LVN Retest backtest complete!");
     Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn run_paper_trade(
-    cache_dir: PathBuf,
-    state_file: PathBuf,
-    log_file: PathBuf,
-    date: Option<String>,
-    level_tolerance: f64,
-    min_delta: i64,
-    max_range: f64,
-    take_profit: f64,
-    trailing_stop: f64,
-    stop_buffer: f64,
-    max_lvn_ratio: f64,
-    start_hour: u32,
-    start_minute: u32,
-    end_hour: u32,
-    end_minute: u32,
-    speed: u32,
-    live_status: bool,
-) -> Result<()> {
-    info!("=== PAPER TRADING VALIDATION ===");
-    info!("Loading from cache: {:?}", cache_dir);
-
-    let start = std::time::Instant::now();
-
-    // Load cached data
-    let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
-
-    if days.is_empty() {
-        anyhow::bail!("No cached data found. Run 'precompute' first.");
-    }
-
-    info!(
-        "Loaded in {:.2}s: {} days of data",
-        start.elapsed().as_secs_f64(),
-        days.len()
-    );
-
-    // Configure paper trading
-    let config = paper_trading::PaperConfig {
-        level_tolerance,
-        retest_distance: 8.0,
-        min_delta,
-        max_range,
-        take_profit,
-        trailing_stop,
-        stop_buffer,
-        max_lvn_ratio,
-        start_hour,
-        start_minute,
-        end_hour,
-        end_minute,
-    };
-
-    info!("Paper Trading Config:");
-    info!("  Trading hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
-    info!("  Level tolerance: {} pts", level_tolerance);
-    info!("  Signal: delta >= {}, range <= {} pts", min_delta, max_range);
-    info!("  TP: {} pts, Trail: {} pts, Stop buffer: {} pts", take_profit, trailing_stop, stop_buffer);
-    info!("  Max LVN ratio: {}", max_lvn_ratio);
-    info!("  Speed: {}x (0 = max speed)", speed);
-
-    // Initialize paper trading state
-    let mut state = paper_trading::PaperTradingState::new(config);
-
-    // Process each day
-    let mut total_bars = 0;
-    let mut total_signals = 0;
-
-    for day in days {
-        let day_date = &day.date;
-        info!("Processing day: {}", day_date);
-
-        // Add LVN levels for this day
-        state.add_lvn_levels(&day.lvn_levels);
-        info!("  Added {} LVN levels", day.lvn_levels.len());
-
-        // Process bars
-        for bar in &day.bars_1s {
-            total_bars += 1;
-
-            if let Some(signal) = state.process_bar(bar) {
-                total_signals += 1;
-
-                // Print alert
-                paper_trading::print_signal_alert(&signal);
-
-                // Log to file
-                if let Err(e) = paper_trading::log_signal(&signal, &log_file) {
-                    info!("Failed to log signal: {}", e);
-                }
-            }
-
-            // Log closed trades
-            let trades = state.get_closed_trades();
-            if let Some(last_trade) = trades.last() {
-                if last_trade.exit_time.is_some() {
-                    if let Err(e) = paper_trading::log_trade(last_trade, &log_file) {
-                        info!("Failed to log trade: {}", e);
-                    }
-                }
-            }
-
-            // Show live status updates periodically
-            if live_status && total_bars % 3600 == 0 {
-                state.print_status();
-            }
-
-            // Speed control
-            if speed > 0 {
-                std::thread::sleep(std::time::Duration::from_millis(1000 / speed as u64));
-            }
-        }
-
-        // Clear levels at end of day (for same-session freshness)
-        state.clear_levels();
-    }
-
-    // Final status
-    state.print_status();
-
-    // Print summary
-    let stats = state.calculate_stats();
-    println!("\n═══════════════════════════════════════════════════════════");
-    println!("              PAPER TRADING SUMMARY                         ");
-    println!("═══════════════════════════════════════════════════════════\n");
-
-    println!("Bars Processed:    {}", total_bars);
-    println!("Signals Generated: {}", total_signals);
-    println!("Trades Executed:   {}", stats.total_trades);
-    println!();
-    println!("Wins:              {} ({:.1}%)", stats.wins, stats.win_rate);
-    println!("Losses:            {}", stats.losses);
-    println!("Total P&L:         {:+.2} pts (${:.2})", stats.total_pnl, stats.total_pnl * 20.0);
-    println!();
-    println!("Avg Win:           {:+.2} pts", stats.avg_win);
-    println!("Avg Loss:          {:+.2} pts", stats.avg_loss);
-    println!("R:R Ratio:         {:.2}:1", stats.rr_ratio);
-    println!("Profit Factor:     {:.2}", stats.profit_factor);
-
-    println!("\n═══════════════════════════════════════════════════════════\n");
-
-    // Save state
-    if let Err(e) = state.save(&state_file) {
-        info!("Failed to save state: {}", e);
-    } else {
-        info!("State saved to {:?}", state_file);
-    }
-
-    info!("Signals logged to {:?}", log_file);
-    info!("Paper trading validation complete!");
-
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn run_trade(
-    mode: String,
-    contracts: i32,
-    daily_loss_limit: f64,
-    take_profit: f64,
-    trailing_stop: f64,
-    stop_buffer: f64,
-    cache_dir: PathBuf,
-    date: Option<String>,
-    start_hour: u32,
-    start_minute: u32,
-    end_hour: u32,
-    end_minute: u32,
-    min_delta: i64,
-    max_lvn_ratio: f64,
-    level_tolerance: f64,
-    starting_balance: f64,
-    speed: u32,
-) -> Result<()> {
-    live_trading::run_trading(
-        mode,
-        contracts,
-        daily_loss_limit,
-        take_profit,
-        trailing_stop,
-        stop_buffer,
-        cache_dir,
-        date,
-        start_hour,
-        start_minute,
-        end_hour,
-        end_minute,
-        min_delta,
-        max_lvn_ratio,
-        level_tolerance,
-        starting_balance,
-        speed,
-    ).await
 }

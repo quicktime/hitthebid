@@ -1,5 +1,5 @@
 use crate::trades::{Side, Trade};
-use chrono::{DateTime, Duration, Timelike, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

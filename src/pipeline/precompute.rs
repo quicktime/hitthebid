@@ -1,17 +1,15 @@
-use anyhow::{Context, Result};
-use chrono::{DateTime, NaiveDate, Utc};
+use anyhow::Result;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tracing::info;
 
 use crate::bars::{aggregate_to_1m_bars, aggregate_to_1s_bars, Bar};
 use crate::impulse::detect_impulse_legs;
-use crate::levels::{compute_daily_levels, DailyLevels, KeyLevel, LevelType};
+use crate::levels::{compute_daily_levels, DailyLevels};
 use crate::lvn::{extract_lvns, LvnLevel};
 use crate::replay::{replay_trades_for_signals, CapturedSignal};
-use crate::trades::{parse_zst_trades, Trade};
+use crate::trades::parse_zst_trades;
 
 /// Pre-computed data for a single trading day
 #[derive(Debug, Clone, Serialize, Deserialize)]
