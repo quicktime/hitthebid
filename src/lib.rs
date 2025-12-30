@@ -7,6 +7,7 @@ pub mod api;
 pub mod streams;
 pub mod execution;
 pub mod trading;
+pub mod trading_core;
 
 // Re-export commonly used types
 pub use types::*;
