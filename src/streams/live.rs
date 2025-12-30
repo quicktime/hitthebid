@@ -5,16 +5,97 @@ use databento::{
     live::Subscription,
     LiveClient,
 };
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::processing::ProcessingState;
 use crate::trading_core::{
-    Bar, LiveConfig, LiveTrader, LiveDailyLevels, Side, StateMachineConfig, TradeAction,
+    Bar, LiveConfig, LiveTrader, Side, StateMachineConfig, TradeAction,
     Trade as TradingTrade, Direction, daily_levels,
 };
 use crate::types::{AppState, Trade, TradingSignal, WsMessage};
+
+/// CSV Trade Logger for tracking all trading activity
+struct TradeLogger {
+    file: File,
+}
+
+impl TradeLogger {
+    fn new(path: &str) -> Result<Self> {
+        // Create file if it doesn't exist
+        let _ = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
+
+        // Check if file is empty to write header
+        let metadata = std::fs::metadata(path)?;
+        if metadata.len() == 0 {
+            let mut file = OpenOptions::new().write(true).open(path)?;
+            writeln!(file, "timestamp,event_type,direction,price,stop,target,pnl_points,reason")?;
+        }
+
+        let file = OpenOptions::new().append(true).open(path)?;
+        Ok(Self { file })
+    }
+
+    fn log_entry(&mut self, ts: DateTime<Utc>, direction: &Direction, price: f64, stop: f64, target: f64) {
+        let dir_str = match direction {
+            Direction::Long => "LONG",
+            Direction::Short => "SHORT",
+        };
+        let _ = writeln!(
+            self.file,
+            "{},ENTRY,{},{:.2},{:.2},{:.2},,",
+            ts.format("%Y-%m-%d %H:%M:%S"),
+            dir_str,
+            price,
+            stop,
+            target
+        );
+        let _ = self.file.flush();
+    }
+
+    fn log_exit(&mut self, ts: DateTime<Utc>, direction: &Direction, price: f64, pnl_points: f64, reason: &str) {
+        let dir_str = match direction {
+            Direction::Long => "LONG",
+            Direction::Short => "SHORT",
+        };
+        let _ = writeln!(
+            self.file,
+            "{},EXIT,{},{:.2},,,{:.2},{}",
+            ts.format("%Y-%m-%d %H:%M:%S"),
+            dir_str,
+            price,
+            pnl_points,
+            reason
+        );
+        let _ = self.file.flush();
+    }
+
+    fn log_stop_update(&mut self, ts: DateTime<Utc>, new_stop: f64) {
+        let _ = writeln!(
+            self.file,
+            "{},STOP_UPDATE,,{:.2},,,,",
+            ts.format("%Y-%m-%d %H:%M:%S"),
+            new_stop
+        );
+        let _ = self.file.flush();
+    }
+
+    fn log_flatten(&mut self, ts: DateTime<Utc>, reason: &str) {
+        let _ = writeln!(
+            self.file,
+            "{},FLATTEN,,,,,,{}",
+            ts.format("%Y-%m-%d %H:%M:%S"),
+            reason
+        );
+        let _ = self.file.flush();
+    }
+}
 
 /// Live mode: Stream real-time data from Databento
 pub async fn run_databento_stream(
@@ -153,9 +234,26 @@ pub async fn run_databento_stream(
         None
     };
 
+    // Create trade logger for CSV tracking
+    let trade_logger = if trading_enabled {
+        match TradeLogger::new("trades.csv") {
+            Ok(logger) => {
+                info!("Trade logger initialized - logging to trades.csv");
+                Some(Arc::new(RwLock::new(logger)))
+            }
+            Err(e) => {
+                warn!("Failed to create trade logger: {} - trades will not be logged to CSV", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // Clone for trade processing
     let trader_clone = trader.clone();
     let bar_agg_clone = bar_aggregator.clone();
+    let trade_logger_clone = trade_logger.clone();
     let tx_trading = state.tx.clone();
 
     // Process incoming records
@@ -202,6 +300,26 @@ pub async fn run_databento_stream(
                     // Process completed bar through trader
                     let mut trader = trader_arc.write().await;
                     if let Some(action) = trader.process_bar(&completed_bar) {
+                        // Log trade action to CSV
+                        if let Some(ref logger_arc) = trade_logger_clone {
+                            let mut logger = logger_arc.write().await;
+                            match &action {
+                                TradeAction::Enter { direction, price, stop, target, .. } => {
+                                    logger.log_entry(ts, direction, *price, *stop, *target);
+                                }
+                                TradeAction::Exit { direction, price, pnl_points, reason } => {
+                                    logger.log_exit(ts, direction, *price, *pnl_points, reason);
+                                }
+                                TradeAction::UpdateStop { new_stop } => {
+                                    logger.log_stop_update(ts, *new_stop);
+                                }
+                                TradeAction::FlattenAll { reason } => {
+                                    logger.log_flatten(ts, reason);
+                                }
+                                TradeAction::SignalPending => {}
+                            }
+                        }
+
                         // Convert TradeAction to TradingSignal and broadcast
                         if let Some(signal) = trade_action_to_signal(&action, timestamp_millis, completed_bar.close) {
                             info!("Trading signal: {:?}", signal.signal_type);
