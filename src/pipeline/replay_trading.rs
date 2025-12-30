@@ -12,7 +12,7 @@ use tracing::info;
 
 use super::bars::Bar;
 use super::precompute;
-use super::rithmic_live::{LiveConfig, LiveTrader, TradingSummary};
+use super::live_trader::{LiveConfig, LiveTrader, TradingSummary};
 use super::state_machine::{StateMachineConfig, LiveDailyLevels};
 use super::trades::{Trade, Side};
 

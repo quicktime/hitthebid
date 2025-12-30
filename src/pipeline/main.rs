@@ -14,7 +14,7 @@ mod paper_trading;
 mod monte_carlo;
 mod live_trading;
 mod replay_trading;
-mod rithmic_live;
+mod live_trader;
 mod ib_live;
 mod databento_ib_live;
 mod state_machine;
@@ -1040,7 +1040,7 @@ async fn main() -> Result<()> {
             slippage, commission,
         } => {
             // Use same LiveConfig as live trading - validates exact same code path
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol: "NQ".to_string(),  // Not used in replay
                 exchange: "CME".to_string(), // Not used in replay
                 contracts,
@@ -1075,7 +1075,7 @@ async fn main() -> Result<()> {
             max_impulse_bars, max_hunting_bars, max_retrace_ratio,
             min_impulse_score,
         } => {
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1132,7 +1132,7 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol,
                 exchange,
                 contracts,
@@ -1155,7 +1155,7 @@ async fn main() -> Result<()> {
                 commission,
             };
 
-            rithmic_live::run_live(config, paper_mode).await?;
+            live_trader::run_live(config, paper_mode).await?;
         }
         Commands::IbTest => {
             ib_live::run_ib_demo()?;
@@ -1182,7 +1182,7 @@ async fn main() -> Result<()> {
                 }
             }
 
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1222,7 +1222,7 @@ async fn main() -> Result<()> {
         Commands::IbPolling {
             contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
         } => {
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
@@ -1272,7 +1272,7 @@ async fn main() -> Result<()> {
             let api_key = std::env::var("DATABENTO_API_KEY")
                 .context("DATABENTO_API_KEY not set")?;
 
-            let config = rithmic_live::LiveConfig {
+            let config = live_trader::LiveConfig {
                 symbol: "NQ".to_string(),
                 exchange: "CME".to_string(),
                 contracts,
