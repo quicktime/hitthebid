@@ -14,7 +14,7 @@ use databento::{
 };
 use std::collections::HashMap;
 use time::{macros::offset, Date, Month, OffsetDateTime, Time, UtcOffset};
-use tracing::info;
+use tracing::{info, warn};
 
 use super::state_machine::LiveDailyLevels;
 
@@ -24,10 +24,10 @@ const RTH_START_MIN: u8 = 30;
 const RTH_END_HOUR: u8 = 16;
 const RTH_END_MIN: u8 = 0;
 
-/// Overnight session: 6pm to 9:30am next day
+/// Overnight session: 6pm to 9:00am next day
 const ON_START_HOUR: u8 = 18;
 const ON_END_HOUR: u8 = 9;
-const ON_END_MIN: u8 = 30;
+const ON_END_MIN: u8 = 0;
 
 /// Price bucket size for volume profile
 const PRICE_BUCKET_SIZE: f64 = 1.0;
@@ -52,16 +52,8 @@ pub async fn fetch_daily_levels(
     let now_et = now_utc.with_timezone(&New_York);
     let today = now_et.date_naive();
 
-    // If it's before RTH close (4pm ET), use day before yesterday for "prior day"
-    // If it's after RTH close, use yesterday
-    let yesterday = if now_et.hour() < RTH_END_HOUR as u32 {
-        today - chrono::Duration::days(2)
-    } else {
-        today - chrono::Duration::days(1)
-    };
-
-    // Skip weekends
-    let yesterday = skip_weekends_backward(yesterday);
+    // Get yesterday (prior trading day) and skip weekends
+    let yesterday = skip_weekends_backward(today - chrono::Duration::days(1));
 
     info!("Computing levels from {}", yesterday);
 
@@ -98,10 +90,18 @@ pub async fn fetch_daily_levels(
     let rth_trades = fetch_trades(&mut client, symbol, rth_start, rth_end).await?;
     info!("Fetched {} RTH trades", rth_trades.len());
 
-    // Fetch overnight trades
+    // Fetch overnight trades (optional - may fail if end time is in the future)
     info!("Fetching overnight session: {} to {}", on_start, on_end);
-    let on_trades = fetch_trades(&mut client, symbol, on_start, on_end).await?;
-    info!("Fetched {} overnight trades", on_trades.len());
+    let on_trades = match fetch_trades(&mut client, symbol, on_start, on_end).await {
+        Ok(trades) => {
+            info!("Fetched {} overnight trades", trades.len());
+            trades
+        }
+        Err(e) => {
+            warn!("Overnight fetch failed (likely data not yet available): {}", e);
+            Vec::new()
+        }
+    };
 
     // Compute levels
     let (pdh, pdl, _session_open, _session_close) = compute_high_low_open_close(&rth_trades);
