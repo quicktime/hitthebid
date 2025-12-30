@@ -206,7 +206,9 @@ impl LvnSignalGenerator {
     }
 
     /// Add LVN levels with explicit impulse ID (for state machine mode)
-    pub fn add_lvn_levels_with_impulse(&mut self, levels: &[LvnLevel], impulse_id: Uuid) {
+    /// Returns the number of levels actually added (after quality filtering)
+    pub fn add_lvn_levels_with_impulse(&mut self, levels: &[LvnLevel], impulse_id: Uuid) -> usize {
+        let mut added = 0;
         for lvn in levels {
             // Quality filter: only use thin LVNs
             if lvn.volume_ratio > self.config.max_lvn_volume_ratio {
@@ -227,7 +229,9 @@ impl LvnSignalGenerator {
                 absorption_bar: None,
                 impulse_id: Some(impulse_id),
             });
+            added += 1;
         }
+        added
     }
 
     /// Clear all LVNs that belong to a specific impulse
@@ -270,21 +274,50 @@ impl LvnSignalGenerator {
         // Clone prev_bar to avoid borrow issues
         let prev_bar = self.bars_buffer[self.bars_buffer.len() - 2].clone();
 
+        // Debug: Log level states periodically (every 60 bars = 1 minute)
+        if !self.tracked_levels.is_empty() && self.bar_count % 60 == 0 {
+            let mut states: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+            let mut closest_level: Option<(f64, &str, f64)> = None;
+            for level in self.tracked_levels.values() {
+                let state_name = match level.state {
+                    LevelState::Untouched => "untouched",
+                    LevelState::Touched => "touched",
+                    LevelState::Armed => "armed",
+                    LevelState::Retesting => "retesting",
+                };
+                *states.entry(state_name).or_insert(0) += 1;
+                let dist = (bar.close - level.price).abs();
+                if closest_level.is_none() || dist < closest_level.as_ref().unwrap().2 {
+                    closest_level = Some((level.price, state_name, dist));
+                }
+            }
+            if let Some((lvn_price, state, dist)) = closest_level {
+                tracing::info!(
+                    "LEVELS: {} total | price={:.2} | closest LVN={:.2} ({}) dist={:.2} | states: {:?}",
+                    self.tracked_levels.len(),
+                    bar.close,
+                    lvn_price,
+                    state,
+                    dist,
+                    states
+                );
+            }
+        }
+
+        // ALWAYS update level states first (so levels transition even outside RTH)
+        self.update_level_states(bar_idx, bar, &prev_bar);
+
         // Check global cooldown
         if let Some(last_bar) = self.last_trade_bar {
             if bar_idx < last_bar + self.config.cooldown_bars {
-                self.update_level_states(bar_idx, bar, &prev_bar);
                 return None;
             }
         }
 
-        // Check trading hours
+        // Check trading hours (for signal generation only, not level state updates)
         if self.config.rth_only && !self.is_trading_hours(bar) {
             return None;
         }
-
-        // Update level states
-        self.update_level_states(bar_idx, bar, &prev_bar);
 
         // Check for signal
         if let Some((level_key, direction, reason)) = self.check_for_signal(bar_idx, bar) {
@@ -360,9 +393,26 @@ impl LvnSignalGenerator {
 
     /// Check for trend continuation signal at retesting LVN
     fn check_for_signal(&self, bar_idx: usize, bar: &Bar) -> Option<(i64, Direction, String)> {
+        // First check if we have any retesting levels
+        let retesting_count = self.tracked_levels.values()
+            .filter(|l| l.state == LevelState::Retesting)
+            .count();
+
         // ELEMENT 1: Market State - must be IMBALANCED (trending)
         let market_config = MarketStateConfig::default();
         let market_state = detect_market_state(&self.bars_buffer, self.bars_buffer.len() - 1, &market_config);
+
+        // Log why we're not generating signals (only when there are retesting levels)
+        if retesting_count > 0 && self.bar_count % 60 == 0 {
+            tracing::info!(
+                "SIGNAL CHECK: {} retesting | market={:?} | delta={} (need {}) | price={:.2}",
+                retesting_count,
+                market_state.state,
+                bar.delta,
+                self.config.min_delta_for_absorption,
+                bar.close
+            );
+        }
 
         if market_state.state != MarketState::Imbalanced {
             return None;

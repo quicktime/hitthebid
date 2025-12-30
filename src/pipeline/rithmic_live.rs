@@ -316,6 +316,22 @@ impl LiveTrader {
         }
     }
 
+    /// Feed a trade to the state machine (for LVN extraction during impulse profiling)
+    pub fn process_trade(&mut self, trade: &crate::trades::Trade) {
+        if let Some(ref mut sm) = self.state_machine {
+            sm.process_trade(trade);
+        }
+    }
+
+    /// Check if the state machine is currently profiling an impulse
+    pub fn is_profiling_impulse(&self) -> bool {
+        if let Some(ref sm) = self.state_machine {
+            sm.state() == super::state_machine::TradingState::ProfilingImpulse
+        } else {
+            false
+        }
+    }
+
     /// Add LVN levels directly (for replay mode)
     pub fn add_lvn_levels(&mut self, levels: &[crate::lvn::LvnLevel]) {
         self.signal_gen.add_lvn_levels(levels);
@@ -445,13 +461,16 @@ impl LiveTrader {
                             );
                         }
                         StateTransition::ImpulseComplete { impulse_id, lvn_count, direction } => {
-                            info!(
-                                "STATE: IMPULSE COMPLETE | {} LVNs | Direction: {:?} | ID: {}",
-                                lvn_count, direction, impulse_id
-                            );
                             // Add the newly extracted LVNs to the signal generator
                             let lvns = sm.active_lvns();
-                            self.signal_gen.add_lvn_levels_with_impulse(lvns, impulse_id);
+                            let added_count = self.signal_gen.add_lvn_levels_with_impulse(lvns, impulse_id);
+                            info!(
+                                "STATE: IMPULSE COMPLETE | {} LVNs (added {}) | Direction: {:?} | ID: {}",
+                                lvn_count, added_count, direction, impulse_id
+                            );
+                            for lvn in lvns {
+                                debug!("  LVN @ {:.2} (vol_ratio: {:.3})", lvn.price, lvn.volume_ratio);
+                            }
                         }
                         StateTransition::ImpulseInvalid { reason } => {
                             info!("STATE: IMPULSE INVALID | {}", reason);

@@ -6,12 +6,96 @@
 //! This validates that live trading will produce results matching expectations.
 
 use anyhow::Result;
+use chrono::Timelike;
 use std::path::PathBuf;
 use tracing::info;
 
+use super::bars::Bar;
 use super::precompute;
 use super::rithmic_live::{LiveConfig, LiveTrader, TradingSummary};
 use super::state_machine::{StateMachineConfig, LiveDailyLevels};
+use super::trades::{Trade, Side};
+
+/// Synthesize trades from a bar for volume profile building
+///
+/// Creates trades that approximate the actual volume distribution within the bar.
+/// This is used to feed the state machine during impulse profiling when we only
+/// have bar data (from cache) instead of raw trade data.
+fn synthesize_trades_from_bar(bar: &Bar) -> Vec<Trade> {
+    let mut trades = Vec::new();
+
+    // Skip bars with no volume
+    if bar.volume == 0 {
+        return trades;
+    }
+
+    // Create trades at key price levels (OHLC)
+    // This gives a reasonable approximation of volume distribution
+    // For LVN detection, we care about which prices had volume
+
+    // Determine bar direction to allocate volume sensibly
+    let is_bullish = bar.close >= bar.open;
+
+    if is_bullish {
+        // Bullish bar: buys dominate, distribute accordingly
+        // More volume at low (where buyers stepped in) and close (where it ended)
+        if bar.buy_volume > 0 {
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.low,
+                size: bar.buy_volume / 2,
+                side: Side::Buy,
+                symbol: bar.symbol.clone(),
+            });
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.close,
+                size: bar.buy_volume / 2,
+                side: Side::Buy,
+                symbol: bar.symbol.clone(),
+            });
+        }
+        if bar.sell_volume > 0 {
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.high,
+                size: bar.sell_volume,
+                side: Side::Sell,
+                symbol: bar.symbol.clone(),
+            });
+        }
+    } else {
+        // Bearish bar: sells dominate
+        // More volume at high (where sellers stepped in) and close (where it ended)
+        if bar.sell_volume > 0 {
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.high,
+                size: bar.sell_volume / 2,
+                side: Side::Sell,
+                symbol: bar.symbol.clone(),
+            });
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.close,
+                size: bar.sell_volume / 2,
+                side: Side::Sell,
+                symbol: bar.symbol.clone(),
+            });
+        }
+        if bar.buy_volume > 0 {
+            trades.push(Trade {
+                ts_event: bar.timestamp,
+                price: bar.low,
+                size: bar.buy_volume,
+                side: Side::Buy,
+                symbol: bar.symbol.clone(),
+            });
+        }
+    }
+
+    trades
+}
 
 /// Run replay trading test using the same LiveTrader as live mode
 pub async fn run_replay(
@@ -188,10 +272,74 @@ pub async fn run_replay_realtime(
 
         // Process today's bars
         let mut last_price = None;
+        let mut trades_fed = 0u64;
+
+        // Track RTH session high/low for evening session levels
+        let mut rth_high = f64::NEG_INFINITY;
+        let mut rth_low = f64::INFINITY;
+        let mut rth_levels_updated = false;
+
         for bar in &day.bars_1s {
             total_bars += 1;
             last_price = Some(bar.close);
+
+            // Get the hour in ET (bars are in UTC, ET is UTC-5 or UTC-4 depending on DST)
+            // For simplicity, assume UTC-5 (EST)
+            let bar_hour = (bar.timestamp.hour() + 24 - 5) % 24;
+
+            // Track RTH high/low (9:30-16:00 ET)
+            if bar_hour >= 9 && bar_hour < 16 {
+                rth_high = rth_high.max(bar.high);
+                rth_low = rth_low.min(bar.low);
+            }
+
+            // Update levels for evening session when we cross into post-market
+            // At 17:00+ (after market close), use today's RTH as the new levels
+            if bar_hour >= 17 && !rth_levels_updated && rth_high > f64::NEG_INFINITY {
+                let evening_levels = LiveDailyLevels {
+                    date: bar.timestamp.date_naive(),
+                    pdh: rth_high,
+                    pdl: rth_low,
+                    onh: rth_high,
+                    onl: rth_low,
+                    vah: rth_high - (rth_high - rth_low) * 0.3,
+                    val: rth_low + (rth_high - rth_low) * 0.3,
+                    session_high: rth_high,
+                    session_low: rth_low,
+                };
+                trader.set_daily_levels(evening_levels);
+                info!("Updated evening levels from RTH: PDH={:.2} PDL={:.2}", rth_high, rth_low);
+                rth_levels_updated = true;
+            }
+
+            // Check if we were profiling BEFORE processing this bar
+            let was_profiling = trader.is_profiling_impulse();
+
+            // If already profiling, feed this bar's trades BEFORE process_bar()
+            // This ensures trades are available when impulse completes
+            if was_profiling {
+                let synthetic_trades = synthesize_trades_from_bar(bar);
+                for trade in &synthetic_trades {
+                    trader.process_trade(trade);
+                    trades_fed += 1;
+                }
+            }
+
+            // Process bar (this may enter/exit profiling state)
             let _ = trader.process_bar(bar);
+
+            // If we JUST started profiling (breakout bar), feed this bar's trades
+            if !was_profiling && trader.is_profiling_impulse() {
+                let synthetic_trades = synthesize_trades_from_bar(bar);
+                for trade in &synthetic_trades {
+                    trader.process_trade(trade);
+                    trades_fed += 1;
+                }
+            }
+        }
+
+        if trades_fed > 0 {
+            info!("Day {}: Fed {} synthetic trades during impulse profiling", day.date, trades_fed);
         }
 
         // Reset daily state for next day

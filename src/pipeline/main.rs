@@ -557,12 +557,12 @@ enum Commands {
         #[arg(long, default_value = "1")]
         contracts: i32,
 
-        /// Take profit in points
-        #[arg(long, default_value = "30")]
+        /// Take profit in points (set very high to use trailing stop only)
+        #[arg(long, default_value = "500")]
         take_profit: f64,
 
         /// Trailing stop distance in points
-        #[arg(long, default_value = "6")]
+        #[arg(long, default_value = "4")]
         trailing_stop: f64,
 
         /// Stop buffer beyond LVN level in points
@@ -578,15 +578,15 @@ enum Commands {
         start_minute: u32,
 
         /// Trading end hour (ET, 24h format)
-        #[arg(long, default_value = "11")]
+        #[arg(long, default_value = "16")]
         end_hour: u32,
 
         /// Trading end minute
         #[arg(long, default_value = "0")]
         end_minute: u32,
 
-        /// Minimum delta for absorption signal
-        #[arg(long, default_value = "60")]
+        /// Minimum delta for absorption signal (lower for 1-second bars)
+        #[arg(long, default_value = "5")]
         min_delta: i64,
 
         /// Maximum LVN volume ratio (lower = thinner = higher quality)
@@ -606,16 +606,24 @@ enum Commands {
         breakout_threshold: f64,
 
         /// Minimum impulse size in points
-        #[arg(long, default_value = "30.0")]
+        #[arg(long, default_value = "15.0")]
         min_impulse_size: f64,
 
-        /// Maximum impulse bars (1s bars, default 300 = 5 min)
-        #[arg(long, default_value = "300")]
+        /// Maximum impulse bars (1s bars, default 600 = 10 min)
+        #[arg(long, default_value = "600")]
         max_impulse_bars: usize,
 
-        /// Maximum hunting bars (1s bars, default 600 = 10 min)
-        #[arg(long, default_value = "600")]
+        /// Maximum hunting bars (1s bars, default 1800 = 30 min)
+        #[arg(long, default_value = "1800")]
         max_hunting_bars: usize,
+
+        /// Maximum retrace ratio before impulse invalidated (0.7 = 70%)
+        #[arg(long, default_value = "0.7")]
+        max_retrace_ratio: f64,
+
+        /// Minimum impulse score (out of 5) to qualify (lowered for 1s bars)
+        #[arg(long, default_value = "3")]
+        min_impulse_score: u8,
     },
 
     /// Live trading via Rithmic (paper or live mode)
@@ -1064,7 +1072,8 @@ async fn main() -> Result<()> {
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance,
             breakout_threshold, min_impulse_size,
-            max_impulse_bars, max_hunting_bars,
+            max_impulse_bars, max_hunting_bars, max_retrace_ratio,
+            min_impulse_score,
         } => {
             let config = rithmic_live::LiveConfig {
                 symbol: "NQ".to_string(),
@@ -1094,7 +1103,8 @@ async fn main() -> Result<()> {
                 max_impulse_bars,
                 min_impulse_size,
                 max_hunting_bars,
-                min_impulse_score: 4,
+                min_impulse_score,
+                max_retrace_ratio,
             };
 
             replay_trading::run_replay_realtime(cache_dir, date, config, sm_config).await?;

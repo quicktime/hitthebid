@@ -28,6 +28,8 @@ pub struct StateMachineConfig {
     pub max_hunting_bars: usize,
     /// Minimum impulse score (out of 5) to qualify (default: 4)
     pub min_impulse_score: u8,
+    /// Maximum retrace ratio before impulse is invalidated (default: 0.7 = 70%)
+    pub max_retrace_ratio: f64,
 }
 
 impl Default for StateMachineConfig {
@@ -38,6 +40,7 @@ impl Default for StateMachineConfig {
             min_impulse_size: 30.0,
             max_hunting_bars: 600,   // 10 minutes
             min_impulse_score: 4,
+            max_retrace_ratio: 0.7,  // 70% retrace allowed (was 50%)
         }
     }
 }
@@ -371,8 +374,10 @@ impl TradingStateMachine {
         // Check if impulse is complete (meets scoring criteria)
         // For breakout, we consider it "broke swing" since we already validated breakout
         let broke_swing = true;
+        let score = impulse.builder.score(broke_swing, avg_volume);
 
-        if impulse.builder.is_complete(broke_swing, avg_volume) {
+        // Use config's min_impulse_score instead of hardcoded constant
+        if score >= self.config.min_impulse_score {
             // Extract LVNs from this impulse
             let impulse_id = impulse.id;
             let direction = impulse.direction;
@@ -408,7 +413,7 @@ impl TradingStateMachine {
         let current_price = bar.close;
 
         // If price has retraced significantly, impulse is invalid
-        let retrace_threshold = move_size * 0.5; // 50% retrace = invalid
+        let retrace_threshold = move_size * self.config.max_retrace_ratio;
         let retraced = match impulse.direction {
             ImpulseDirection::Up => current_price < max_expected - retrace_threshold,
             ImpulseDirection::Down => current_price > max_expected + retrace_threshold,
@@ -417,7 +422,7 @@ impl TradingStateMachine {
         if retraced {
             self.state = TradingState::Reset;
             return Some(StateTransition::ImpulseInvalid {
-                reason: "Impulse retraced >50% before completing".to_string(),
+                reason: format!("Impulse retraced >{:.0}% before completing", self.config.max_retrace_ratio * 100.0),
             });
         }
 
