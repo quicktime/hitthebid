@@ -584,15 +584,19 @@ enum Commands {
 
     /// Live trading with Databento data + IB execution (production mode)
     DatabentoIbLive {
-        /// Trading mode: "paper" or "live"
-        #[arg(long, default_value = "paper")]
+        /// Trading mode: "observe" (no execution, just track), "paper", or "live"
+        #[arg(long, default_value = "observe")]
         mode: String,
 
         /// Contract symbol (e.g., NQH6 for March 2026, NQM6 for June 2026)
         #[arg(long, default_value = "NQH6")]
         contract_symbol: String,
 
-        /// IB Client ID (must be unique per connection)
+        /// Output file for trade log (CSV format)
+        #[arg(long, default_value = "trades.csv")]
+        trade_log: PathBuf,
+
+        /// IB Client ID (must be unique per connection, ignored in observe mode)
         #[arg(long, default_value = "2")]
         client_id: i32,
 
@@ -931,16 +935,18 @@ async fn main() -> Result<()> {
             ib_execution::run_ib_futures_test(duration)?;
         }
         Commands::DatabentoIbLive {
-            mode, contract_symbol, client_id, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+            mode, contract_symbol, trade_log, client_id, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
             start_hour, start_minute, end_hour, end_minute,
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses, daily_loss_limit,
             breakout_threshold, min_impulse_size, min_impulse_score,
             max_impulse_bars, max_hunting_bars, max_retrace_ratio,
         } => {
-            let paper_mode = mode.to_lowercase() != "live";
+            let mode_lower = mode.to_lowercase();
+            let observe_mode = mode_lower == "observe";
+            let paper_mode = mode_lower != "live";
 
-            if !paper_mode {
+            if !paper_mode && !observe_mode {
                 println!("\n⚠️  LIVE TRADING MODE ⚠️");
                 println!("This will execute REAL trades with REAL money.");
                 println!("Type 'CONFIRM' to proceed:");
@@ -988,18 +994,30 @@ async fn main() -> Result<()> {
                 max_retrace_ratio,
             };
 
-            let ib_config = ib_execution::IbConfig {
-                client_id,
-                ..ib_execution::IbConfig::default()
-            };
-            databento_ib_live::run_databento_ib_live(
-                api_key,
-                contract_symbol,
-                config,
-                sm_config,
-                ib_config,
-                paper_mode
-            ).await?;
+            if observe_mode {
+                // Observe mode: no IB connection, just track trades internally
+                databento_ib_live::run_observe_mode(
+                    api_key,
+                    contract_symbol,
+                    config,
+                    sm_config,
+                    trade_log,
+                ).await?;
+            } else {
+                // Paper or live mode: connect to IB for execution
+                let ib_config = ib_execution::IbConfig {
+                    client_id,
+                    ..ib_execution::IbConfig::default()
+                };
+                databento_ib_live::run_databento_ib_live(
+                    api_key,
+                    contract_symbol,
+                    config,
+                    sm_config,
+                    ib_config,
+                    paper_mode
+                ).await?;
+            }
         }
         Commands::DatabentoTest { symbol, duration } => {
             use databento::{
