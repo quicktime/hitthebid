@@ -99,9 +99,9 @@ impl Default for ExecutionConfig {
             max_position_size: 1,
             daily_loss_limit: 100.0,  // $2,000 with 1 NQ
             max_daily_losses: 3,       // Stop after 3 losing trades
-            take_profit: 30.0,         // From backtest
-            trailing_stop: 6.0,        // From backtest
-            stop_buffer: 1.5,          // From backtest
+            take_profit: 0.0,          // No TP - trailing stop handles exits
+            trailing_stop: 1.5,        // Optimal from multi-sweep (PF 3.68, +1029 pts)
+            stop_buffer: 2.0,          // Buffer for initial stop
             point_value: 20.0,         // NQ = $20/pt
             start_hour: 9,
             start_minute: 30,

@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::bars::Bar;
+use super::lvn::extract_lvns_from_rth_profile;
 use super::precompute;
 use super::trader::{LiveConfig, LiveTrader, TradingSummary};
 use super::state_machine::{StateMachineConfig, LiveDailyLevels};
@@ -196,6 +197,17 @@ pub async fn run_replay(
         println!("Signals Skipped:    {}", summary.signals_skipped);
     }
 
+    // Show filtered statistics if outliers were excluded
+    if summary.outliers_excluded > 0 {
+        println!();
+        println!("─── Filtered Stats (excl {} outliers >{:.0} pts) ───",
+            summary.outliers_excluded, config.outlier_threshold);
+        println!("Filtered Win Rate:    {:.1}%", summary.filtered_win_rate);
+        println!("Filtered Avg Win:     {:.2} pts", summary.filtered_avg_win);
+        println!("Filtered PF:          {:.2}", summary.filtered_profit_factor);
+        println!("Filtered Sharpe:      {:.2}", summary.filtered_sharpe_ratio);
+    }
+
     println!("\n═══════════════════════════════════════════════════════════\n");
 
     Ok(summary)
@@ -241,8 +253,7 @@ pub async fn run_replay_realtime(
         if i > 0 {
             let yesterday = &days[i - 1];
 
-            // Create LiveDailyLevels from yesterday's data
-            // We need to compute PDH/PDL from yesterday's bars
+            // Compute PDH/PDL from yesterday's bars
             let yesterday_high = yesterday.bars_1s.iter()
                 .map(|b| b.high)
                 .fold(f64::NEG_INFINITY, f64::max);
@@ -250,24 +261,34 @@ pub async fn run_replay_realtime(
                 .map(|b| b.low)
                 .fold(f64::INFINITY, f64::min);
 
-            // For simplicity, use session high/low as ON levels
-            // In production, you'd compute these more precisely
+            // Use precomputed daily levels from cache if available, else approximate
+            let (onh, onl, vah, val) = if let Some(cached_levels) = yesterday.daily_levels.first() {
+                (cached_levels.onh, cached_levels.onl, cached_levels.vah, cached_levels.val)
+            } else {
+                // Fallback approximation
+                let range = yesterday_high - yesterday_low;
+                (yesterday_high, yesterday_low,
+                 yesterday_high - range * 0.3,
+                 yesterday_low + range * 0.3)
+            };
+
             let daily_levels = LiveDailyLevels {
                 date: day.bars_1s.first()
                     .map(|b| b.timestamp.date_naive())
                     .unwrap_or_else(|| chrono::Utc::now().date_naive()),
                 pdh: yesterday_high,
                 pdl: yesterday_low,
-                onh: yesterday_high, // Simplified
-                onl: yesterday_low,  // Simplified
-                vah: yesterday_high - (yesterday_high - yesterday_low) * 0.3, // Approx VAH
-                val: yesterday_low + (yesterday_high - yesterday_low) * 0.3,  // Approx VAL
+                onh,
+                onl,
+                vah,
+                val,
                 session_high: yesterday_high,
                 session_low: yesterday_low,
             };
 
             trader.set_daily_levels(daily_levels);
-            info!("Set daily levels: PDH={:.2} PDL={:.2}", yesterday_high, yesterday_low);
+            info!("Set daily levels: PDH={:.2} PDL={:.2} VAH={:.2} VAL={:.2}",
+                yesterday_high, yesterday_low, vah, val);
         }
 
         // Process today's bars
@@ -283,12 +304,15 @@ pub async fn run_replay_realtime(
             total_bars += 1;
             last_price = Some(bar.close);
 
-            // Get the hour in ET (bars are in UTC, ET is UTC-5 or UTC-4 depending on DST)
-            // For simplicity, assume UTC-5 (EST)
-            let bar_hour = (bar.timestamp.hour() + 24 - 5) % 24;
+            // Get the hour in ET with proper DST handling
+            use chrono_tz::America::New_York;
+            let et_time = bar.timestamp.with_timezone(&New_York);
+            let bar_hour = et_time.hour();
+            let bar_minute = et_time.minute();
 
             // Track RTH high/low (9:30-16:00 ET)
-            if bar_hour >= 9 && bar_hour < 16 {
+            let is_rth = (bar_hour > 9 || (bar_hour == 9 && bar_minute >= 30)) && bar_hour < 16;
+            if is_rth {
                 rth_high = rth_high.max(bar.high);
                 rth_low = rth_low.min(bar.low);
             }
@@ -296,14 +320,16 @@ pub async fn run_replay_realtime(
             // Update levels for evening session when we cross into post-market
             // At 17:00+ (after market close), use today's RTH as the new levels
             if bar_hour >= 17 && !rth_levels_updated && rth_high > f64::NEG_INFINITY {
+                // Use approximated VAH/VAL for evening session
+                let range = rth_high - rth_low;
                 let evening_levels = LiveDailyLevels {
                     date: bar.timestamp.date_naive(),
                     pdh: rth_high,
                     pdl: rth_low,
                     onh: rth_high,
                     onl: rth_low,
-                    vah: rth_high - (rth_high - rth_low) * 0.3,
-                    val: rth_low + (rth_high - rth_low) * 0.3,
+                    vah: rth_high - range * 0.3,
+                    val: rth_low + range * 0.3,
                     session_high: rth_high,
                     session_low: rth_low,
                 };
@@ -368,6 +394,138 @@ pub async fn run_replay_realtime(
     println!("Total P&L:         {:+.2} pts", summary.net_pnl);
     println!("Final Balance:     ${:.2}", summary.final_balance);
     println!("Max Drawdown:      ${:.2}", summary.max_drawdown);
+
+    // Show filtered statistics if outliers were excluded
+    if summary.outliers_excluded > 0 {
+        println!();
+        println!("─── Filtered Stats (excl {} outliers >{:.0} pts) ───",
+            summary.outliers_excluded, config.outlier_threshold);
+        println!("Filtered Win Rate:    {:.1}%", summary.filtered_win_rate);
+        println!("Filtered Avg Win:     {:.2} pts", summary.filtered_avg_win);
+        println!("Filtered PF:          {:.2}", summary.filtered_profit_factor);
+        println!("Filtered Sharpe:      {:.2}", summary.filtered_sharpe_ratio);
+    }
+
+    println!("\n═══════════════════════════════════════════════════════════\n");
+
+    Ok(summary)
+}
+
+/// Run replay using PRIOR DAY FULL PROFILE LVNs
+///
+/// Key difference from other modes:
+/// - LVNs are extracted from the ENTIRE prior day's volume profile
+/// - No real-time impulse detection required
+/// - More stable levels since they represent full-session low-volume areas
+///
+/// The edge: Full-profile LVNs capture structural gaps in the market
+/// that formed over the prior session. These represent areas of
+/// low market acceptance that price is likely to revisit.
+pub async fn run_replay_prior_day_profile(
+    cache_dir: PathBuf,
+    date: Option<String>,
+    config: LiveConfig,
+) -> Result<TradingSummary> {
+    info!("=== REPLAY PRIOR DAY PROFILE LVNs ===");
+    info!("Using full-profile LVNs from prior day's volume distribution");
+    info!("Starting balance: ${:.2}", config.starting_balance);
+    info!("Contracts: {}", config.contracts);
+
+    let mut trader = LiveTrader::new(config.clone());
+
+    // Load cached data
+    info!("Loading cached data from {:?}...", cache_dir);
+    let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+    if days.is_empty() {
+        anyhow::bail!("No cached data found. Run 'precompute' first.");
+    }
+
+    info!("Loaded {} days of data", days.len());
+
+    // Process each day
+    let mut total_bars = 0;
+    let mut total_profile_lvns = 0;
+
+    for (i, day) in days.iter().enumerate() {
+        // Before processing today's bars, extract LVNs from YESTERDAY's full profile
+        if i > 0 {
+            let yesterday = &days[i - 1];
+
+            // Extract LVNs from prior day's RTH volume profile
+            let profile_lvns = extract_lvns_from_rth_profile(&yesterday.bars_1s);
+
+            if !profile_lvns.is_empty() {
+                info!(
+                    "Day {}: Extracted {} LVNs from {} RTH profile (prices: {:.2} - {:.2})",
+                    day.date,
+                    profile_lvns.len(),
+                    yesterday.date,
+                    profile_lvns.first().map(|l| l.price).unwrap_or(0.0),
+                    profile_lvns.last().map(|l| l.price).unwrap_or(0.0),
+                );
+                trader.add_lvn_levels(&profile_lvns);
+                total_profile_lvns += profile_lvns.len();
+            }
+        }
+
+        // Process today's bars
+        let mut last_price = None;
+        for bar in &day.bars_1s {
+            total_bars += 1;
+            last_price = Some(bar.close);
+            let _ = trader.process_bar(bar);
+        }
+
+        // Reset for next day
+        trader.reset_for_new_day(last_price);
+    }
+
+    info!("Processed {} bars using {} prior-day profile LVNs", total_bars, total_profile_lvns);
+
+    let summary = trader.summary();
+
+    println!("\n═══════════════════════════════════════════════════════════");
+    println!("      REPLAY RESULTS (Prior Day Full-Profile LVNs)         ");
+    println!("═══════════════════════════════════════════════════════════\n");
+
+    println!("Bars Processed:    {}", total_bars);
+    println!("Profile LVNs Used: {}", total_profile_lvns);
+    println!("Total Trades:      {}", summary.total_trades);
+    println!("Wins:              {} ({:.1}%)", summary.wins, summary.win_rate);
+    println!("Losses:            {}", summary.losses);
+    println!("Breakevens:        {}", summary.breakevens);
+    println!();
+    println!("Profit Factor:     {:.2}", summary.profit_factor);
+    println!("Sharpe Ratio:      {:.2}", summary.sharpe_ratio);
+    println!("Avg Win:           {:.2} pts", summary.avg_win);
+    println!("Avg Loss:          {:.2} pts", summary.avg_loss);
+    println!();
+
+    if summary.total_slippage > 0.0 || summary.total_commission > 0.0 {
+        println!("─── P&L Breakdown ───");
+        println!("Gross P&L:         {:+.2} pts", summary.gross_pnl);
+        println!("Slippage:          -{:.2} pts", summary.total_slippage);
+        println!("Commission:        ${:.2}", summary.total_commission);
+        println!("Net P&L:           {:+.2} pts", summary.net_pnl);
+        println!();
+    } else {
+        println!("Total P&L:         {:+.2} pts", summary.net_pnl);
+        println!();
+    }
+
+    println!("Final Balance:     ${:.2}", summary.final_balance);
+    println!("Max Drawdown:      ${:.2}", summary.max_drawdown);
+
+    if summary.outliers_excluded > 0 {
+        println!();
+        println!("─── Filtered Stats (excl {} outliers >{:.0} pts) ───",
+            summary.outliers_excluded, config.outlier_threshold);
+        println!("Filtered Win Rate:    {:.1}%", summary.filtered_win_rate);
+        println!("Filtered Avg Win:     {:.2} pts", summary.filtered_avg_win);
+        println!("Filtered PF:          {:.2}", summary.filtered_profit_factor);
+        println!("Filtered Sharpe:      {:.2}", summary.filtered_sharpe_ratio);
+    }
 
     println!("\n═══════════════════════════════════════════════════════════\n");
 

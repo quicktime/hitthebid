@@ -30,6 +30,8 @@ pub struct StateMachineConfig {
     pub min_impulse_score: u8,
     /// Maximum retrace ratio before impulse is invalidated (default: 0.7 = 70%)
     pub max_retrace_ratio: f64,
+    /// Minimum bars before considering switching to a new breakout (default: 60 = 1 min)
+    pub min_bars_before_switch: usize,
 }
 
 impl Default for StateMachineConfig {
@@ -37,10 +39,11 @@ impl Default for StateMachineConfig {
         Self {
             breakout_threshold: 2.0,
             max_impulse_bars: 300,   // 5 minutes
-            min_impulse_size: 30.0,
+            min_impulse_size: 25.0,  // Optimal from multi-sweep (+1029 pts)
             max_hunting_bars: 600,   // 10 minutes
             min_impulse_score: 4,
             max_retrace_ratio: 0.7,  // 70% retrace allowed (was 50%)
+            min_bars_before_switch: 10, // 10 seconds before considering switch
         }
     }
 }

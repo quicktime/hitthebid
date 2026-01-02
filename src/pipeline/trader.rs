@@ -61,6 +61,12 @@ pub struct LiveConfig {
     pub slippage: f64,
     /// Commission per round-trip in dollars
     pub commission: f64,
+    /// Maximum win cap in points (0 = disabled). Caps unrealistic wins.
+    pub max_win_cap: f64,
+    /// Volatility slippage factor. Extra slippage = bar_range * factor (0 = disabled)
+    pub volatility_slippage_factor: f64,
+    /// Outlier threshold in points for statistics (trades above this excluded from stats)
+    pub outlier_threshold: f64,
 }
 
 impl LiveConfig {
@@ -82,6 +88,7 @@ impl LiveConfig {
             same_day_only: false,
             min_absorption_bars: 1,
             structure_stop_buffer: self.stop_buffer,
+            max_stop_loss: 100.0, // Effectively disabled
             trade_start_hour: self.start_hour,
             trade_start_minute: self.start_minute,
             trade_end_hour: self.end_hour,
@@ -511,6 +518,16 @@ impl LiveTrader {
                 ),
             };
 
+            // Check if stop distance exceeds max allowed
+            let stop_distance = (entry_price - initial_stop).abs();
+            if stop_distance > self.lvn_config.max_stop_loss {
+                info!(
+                    "SKIPPED: {:?} @ {:.2} | Stop too far: {:.2} pts (max {:.2})",
+                    signal.direction, entry_price, stop_distance, self.lvn_config.max_stop_loss
+                );
+                return None;
+            }
+
             self.open_position = Some(OpenPosition {
                 direction: signal.direction,
                 entry_price,
@@ -525,22 +542,21 @@ impl LiveTrader {
             });
 
             info!(
-                "ENTRY: {:?} @ {:.2} | Stop: {:.2} | Target: {:.2}",
-                signal.direction, entry_price, initial_stop, take_profit
+                "ENTRY: {:?} @ {:.2} | Stop: {:.2} | Target: {:.2} | Bar: {}",
+                signal.direction, entry_price, initial_stop, take_profit, bar.timestamp
             );
 
-            return Some(TradeAction::Enter {
-                direction: signal.direction,
-                price: entry_price,
-                stop: initial_stop,
-                target: take_profit,
-                contracts: self.config.contracts,
-            });
+            // Return after entry - don't check stops on entry bar
+            // This assumes we get filled and the bar continues without stopping us
+            // NOTE: This gives optimistic results. Set check_entry_bar_stop=true for conservative.
+            return None;
         }
 
         // Step 2: Manage open position
         if let Some(ref mut pos) = self.open_position {
             pos.bar_count += 1;
+
+            // Update price extremes from this completed bar
             pos.highest_price = pos.highest_price.max(bar.high);
             pos.lowest_price = pos.lowest_price.min(bar.low);
 
@@ -606,10 +622,17 @@ impl LiveTrader {
 
             if should_exit {
                 // Calculate gross P&L (before costs)
-                let gross_pnl_points = match pos.direction {
+                let mut gross_pnl_points = match pos.direction {
                     Direction::Long => exit_price - pos.entry_price,
                     Direction::Short => pos.entry_price - exit_price,
                 };
+
+                // Apply max win cap (for realistic backtesting)
+                // In real trading, extreme moves often have poor fills
+                if self.config.max_win_cap > 0.0 && gross_pnl_points > self.config.max_win_cap {
+                    debug!("Win capped from {:.2} to {:.2} pts", gross_pnl_points, self.config.max_win_cap);
+                    gross_pnl_points = self.config.max_win_cap;
+                }
 
                 // Apply slippage (affects both entry and exit)
                 let slippage_cost = self.config.slippage * 2.0; // Entry + exit slippage
@@ -636,20 +659,24 @@ impl LiveTrader {
                     self.max_drawdown = drawdown;
                 }
 
-                if pnl_points > 0.5 {
+                // Commission in points (to determine true breakeven)
+                let commission_pts = commission / (self.config.point_value * self.config.contracts as f64);
+
+                // Win = covers commission, Loss = negative before commission, BE = in between
+                if pnl_points > commission_pts {
                     self.wins += 1;
                     self.gross_profit += pnl_points;
                     info!(
-                        "EXIT {}: {:?} @ {:.2} | P&L: +{:.2} pts (${:+.2}) | WIN",
-                        exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars
+                        "EXIT {}: {:?} @ {:.2} | P&L: +{:.2} pts (${:+.2}) | WIN | Bar: {} | Bars held: {}",
+                        exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars, bar.timestamp, pos.bar_count
                     );
-                } else if pnl_points < -0.5 {
+                } else if pnl_points < 0.0 {
                     self.losses += 1;
                     self.daily_losses += 1;
                     self.gross_loss += pnl_points.abs();
                     info!(
-                        "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts (${:.2}) | LOSS",
-                        exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars
+                        "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts (${:.2}) | LOSS | Bar: {} | Bars held: {}",
+                        exit_reason, pos.direction, exit_price, pnl_points, pnl_dollars, bar.timestamp, pos.bar_count
                     );
 
                     // Check max daily losses
@@ -660,10 +687,11 @@ impl LiveTrader {
                         self.daily_stopped = true;
                     }
                 } else {
+                    // 0 <= pnl_points <= commission_pts: covers slippage but not full commission
                     self.breakevens += 1;
                     info!(
-                        "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts | BREAKEVEN",
-                        exit_reason, pos.direction, exit_price, pnl_points
+                        "EXIT {}: {:?} @ {:.2} | P&L: {:.2} pts | BREAKEVEN | Bar: {} | Bars held: {}",
+                        exit_reason, pos.direction, exit_price, pnl_points, bar.timestamp, pos.bar_count
                     );
                 }
 
@@ -813,6 +841,77 @@ impl LiveTrader {
             0.0
         };
 
+        // Calculate outlier-excluded statistics for realistic assessment
+        let outlier_threshold = self.config.outlier_threshold;
+        let (outliers_excluded, filtered_profit_factor, filtered_sharpe_ratio, filtered_avg_win, filtered_win_rate) =
+            if outlier_threshold > 0.0 {
+                // Filter out trades above the outlier threshold
+                let filtered_pnls: Vec<f64> = self.trade_pnls.iter()
+                    .filter(|&&pnl| pnl <= outlier_threshold)
+                    .copied()
+                    .collect();
+
+                let outliers = (self.trade_pnls.len() - filtered_pnls.len()) as u32;
+
+                if filtered_pnls.is_empty() {
+                    (outliers, 0.0, 0.0, 0.0, 0.0)
+                } else {
+                    // Calculate filtered gross profit/loss
+                    let filtered_gross_profit: f64 = filtered_pnls.iter()
+                        .filter(|&&p| p > 0.5)
+                        .sum();
+                    let filtered_gross_loss: f64 = filtered_pnls.iter()
+                        .filter(|&&p| p < -0.5)
+                        .map(|p| p.abs())
+                        .sum();
+                    let filtered_wins: usize = filtered_pnls.iter()
+                        .filter(|&&p| p > 0.5)
+                        .count();
+                    let filtered_total = filtered_pnls.len();
+
+                    // Filtered profit factor
+                    let f_pf = if filtered_gross_loss > 0.0 {
+                        filtered_gross_profit / filtered_gross_loss
+                    } else if filtered_gross_profit > 0.0 {
+                        f64::INFINITY
+                    } else {
+                        0.0
+                    };
+
+                    // Filtered average win
+                    let f_avg_win = if filtered_wins > 0 {
+                        filtered_gross_profit / filtered_wins as f64
+                    } else {
+                        0.0
+                    };
+
+                    // Filtered win rate
+                    let f_win_rate = filtered_wins as f64 / filtered_total as f64 * 100.0;
+
+                    // Filtered Sharpe ratio
+                    let f_net_pnl = filtered_gross_profit - filtered_gross_loss;
+                    let f_sharpe = if filtered_total > 1 {
+                        let f_mean = f_net_pnl / filtered_total as f64;
+                        let f_variance: f64 = filtered_pnls.iter()
+                            .map(|r| (r - f_mean).powi(2))
+                            .sum::<f64>() / filtered_total as f64;
+                        let f_std = f_variance.sqrt();
+                        if f_std > 0.0 {
+                            (f_mean / f_std) * (252.0_f64).sqrt()
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        0.0
+                    };
+
+                    (outliers, f_pf, f_sharpe, f_avg_win, f_win_rate)
+                }
+            } else {
+                // No filtering - use original stats
+                (0, profit_factor, sharpe_ratio, avg_win, win_rate)
+            };
+
         TradingSummary {
             total_trades: total,
             wins,
@@ -831,12 +930,17 @@ impl LiveTrader {
             days_stopped_early: days_stopped,
             signals_skipped: self.signals_skipped,
             sharpe_ratio,
+            outliers_excluded,
+            filtered_profit_factor,
+            filtered_sharpe_ratio,
+            filtered_avg_win,
+            filtered_win_rate,
         }
     }
 }
 
 /// Summary of trading results
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TradingSummary {
     pub total_trades: u32,
     pub wins: u32,
@@ -855,6 +959,12 @@ pub struct TradingSummary {
     pub days_stopped_early: u32,
     pub signals_skipped: u32,
     pub sharpe_ratio: f64,
+    // Outlier-excluded statistics (for realistic assessment)
+    pub outliers_excluded: u32,
+    pub filtered_profit_factor: f64,
+    pub filtered_sharpe_ratio: f64,
+    pub filtered_avg_win: f64,
+    pub filtered_win_rate: f64,
 }
 
 /// Actions the trading loop should take

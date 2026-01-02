@@ -104,6 +104,7 @@ pub async fn run_databento_stream(
     state: Arc<AppState>,
     trading_enabled: bool,
     cache_dir: PathBuf,
+    contracts: u32,
 ) -> Result<()> {
     if trading_enabled {
         info!("Trading signals ENABLED - will generate entry/exit alerts");
@@ -187,26 +188,35 @@ pub async fn run_databento_stream(
 
     // Create shared LiveTrader for the real LVN retest strategy
     let trader = if trading_enabled {
+        let symbol = symbols.first().cloned().unwrap_or_else(|| "NQ".to_string());
+
+        // Detect micro contracts (MNQ, MES, etc.) and set appropriate point value
+        let is_micro = symbol.starts_with("MNQ") || symbol.starts_with("MES")
+                    || symbol.starts_with("M2K") || symbol.starts_with("MYM");
+        let point_value = if is_micro { 2.0 } else { 20.0 };  // MNQ=$2/pt, NQ=$20/pt
+
+        info!("Trading {} x{} - point value: ${}/pt (micro: {})", symbol, contracts, point_value, is_micro);
+
         // Create LiveConfig with default settings
         let config = LiveConfig {
-            symbol: symbols.first().cloned().unwrap_or_else(|| "NQ".to_string()),
+            symbol,
             exchange: "CME".to_string(),
-            contracts: 1,
+            contracts: contracts as i32,
             cache_dir: cache_dir.clone(),
-            take_profit: 20.0,
-            trailing_stop: 6.0,
+            take_profit: 0.0,  // No TP - let trailing stop handle exits
+            trailing_stop: 1.5,  // Optimal from multi-sweep (PF 3.68, +1029 pts)
             stop_buffer: 2.0,
             start_hour: 9,
             start_minute: 30,
             end_hour: 16,
             end_minute: 0,
-            min_delta: 100,
+            min_delta: 150,  // Best for net P&L (2.11 trades/day)
             max_lvn_ratio: 0.15,
             level_tolerance: 2.0,
             starting_balance: 50000.0,
             max_daily_losses: 3,
             daily_loss_limit: 50.0,
-            point_value: 20.0,
+            point_value,
             slippage: 0.25,
             commission: 4.50,
         };

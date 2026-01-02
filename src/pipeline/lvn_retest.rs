@@ -59,6 +59,8 @@ pub struct LvnRetestConfig {
     pub min_absorption_bars: usize,
     /// Structure-based stop buffer (points beyond the LVN level)
     pub structure_stop_buffer: f64,
+    /// Maximum stop loss in points (reject trades with stops further than this)
+    pub max_stop_loss: f64,
     /// Trading start hour (ET, 24h format, e.g. 9 for 9:00 AM)
     pub trade_start_hour: u32,
     /// Trading start minute (e.g. 30 for 9:30)
@@ -87,6 +89,7 @@ impl Default for LvnRetestConfig {
             same_day_only: false,       // Default: use all LVNs
             min_absorption_bars: 1,     // Default: single bar signal
             structure_stop_buffer: 2.0, // Default: 2 pts beyond level
+            max_stop_loss: 10.0,        // Default: reject trades with stops > 10 pts
             trade_start_hour: 9,        // 9:30 AM ET
             trade_start_minute: 30,
             trade_end_hour: 16,         // 4:00 PM ET (full RTH)

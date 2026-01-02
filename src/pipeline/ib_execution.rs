@@ -39,15 +39,27 @@ impl Default for IbConfig {
 
 /// Create NQ futures contract for IB with default symbol
 pub fn create_nq_contract() -> Contract {
-    create_nq_contract_with_symbol("NQH6")
+    create_futures_contract("NQH6")
 }
 
-/// Create NQ futures contract for IB with specified contract symbol
-/// Symbol format: NQ + month code + year digit (e.g., NQH6 = March 2026)
+/// Create futures contract for IB with specified contract symbol
+/// Supports both E-mini (NQ) and Micro (MNQ) contracts
+/// Symbol format: [M]NQ + month code + year digit (e.g., NQH6, MNQH6 = March 2026)
 /// Month codes: H=Mar, M=Jun, U=Sep, Z=Dec
-pub fn create_nq_contract_with_symbol(local_symbol: &str) -> Contract {
+pub fn create_futures_contract(local_symbol: &str) -> Contract {
+    // Detect if micro contract
+    let is_micro = local_symbol.starts_with("MNQ") || local_symbol.starts_with("MES")
+                || local_symbol.starts_with("M2K") || local_symbol.starts_with("MYM");
+
+    // Extract base symbol (NQ, ES, etc.)
+    let base_symbol = if is_micro {
+        &local_symbol[1..3]  // MNQ -> NQ
+    } else {
+        &local_symbol[0..2]  // NQH6 -> NQ
+    };
+
     Contract {
-        symbol: "NQ".to_string(),
+        symbol: if is_micro { format!("M{}", base_symbol) } else { base_symbol.to_string() },
         security_type: SecurityType::Future,
         exchange: "CME".to_string(),
         currency: "USD".to_string(),
@@ -55,6 +67,11 @@ pub fn create_nq_contract_with_symbol(local_symbol: &str) -> Contract {
         primary_exchange: "CME".to_string(),
         ..Default::default()
     }
+}
+
+/// Alias for backwards compatibility
+pub fn create_nq_contract_with_symbol(local_symbol: &str) -> Contract {
+    create_futures_contract(local_symbol)
 }
 
 /// Create a stock contract for testing (works with delayed data)

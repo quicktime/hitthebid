@@ -1,0 +1,3 @@
+min_delta,max_lvn_ratio,min_impulse_size,min_impulse_score,take_profit,trailing_stop,stop_buffer,breakout_threshold,max_hunting_bars,total_trades,wins,losses,breakevens,win_rate,profit_factor,sharpe_ratio,avg_win,avg_loss,total_pnl,max_drawdown,rr_ratio,expectancy
+15,0.2,15.0,4,25,5,2,2.0,600,41,13,27,1,31.70731707317073,0.94,-0.35,4.08,-2.08,-3.25,507.0,1.9615384615384615,-0.07609756097560982
+15,0.2,15.0,4,25,5,2,2.0,900,41,13,27,1,31.70731707317073,0.94,-0.35,4.08,-2.08,-3.25,507.0,1.9615384615384615,-0.07609756097560982

@@ -42,6 +42,19 @@ pub enum LevelType {
     ONH,  // Overnight High
     ONL,  // Overnight Low
     LVN,  // Low Volume Node
+    // New level types
+    Fib236,   // Fibonacci 23.6% retracement
+    Fib382,   // Fibonacci 38.2% retracement
+    Fib500,   // Fibonacci 50% retracement
+    Fib618,   // Fibonacci 61.8% retracement (golden ratio)
+    Fib786,   // Fibonacci 78.6% retracement
+    VWAP,     // Volume Weighted Average Price
+    WeeklyHigh,  // Prior week high
+    WeeklyLow,   // Prior week low
+    MonthlyHigh, // Prior month high
+    MonthlyLow,  // Prior month low
+    WeeklyOpen,  // Weekly open
+    MonthlyOpen, // Monthly open
 }
 
 impl std::fmt::Display for LevelType {
@@ -55,6 +68,18 @@ impl std::fmt::Display for LevelType {
             LevelType::ONH => write!(f, "ONH"),
             LevelType::ONL => write!(f, "ONL"),
             LevelType::LVN => write!(f, "LVN"),
+            LevelType::Fib236 => write!(f, "Fib23.6"),
+            LevelType::Fib382 => write!(f, "Fib38.2"),
+            LevelType::Fib500 => write!(f, "Fib50"),
+            LevelType::Fib618 => write!(f, "Fib61.8"),
+            LevelType::Fib786 => write!(f, "Fib78.6"),
+            LevelType::VWAP => write!(f, "VWAP"),
+            LevelType::WeeklyHigh => write!(f, "WH"),
+            LevelType::WeeklyLow => write!(f, "WL"),
+            LevelType::MonthlyHigh => write!(f, "MH"),
+            LevelType::MonthlyLow => write!(f, "ML"),
+            LevelType::WeeklyOpen => write!(f, "WO"),
+            LevelType::MonthlyOpen => write!(f, "MO"),
         }
     }
 }
@@ -368,6 +393,212 @@ fn bucket_to_price(bucket: i64) -> f64 {
 /// Check if a price is within a tolerance of a level
 pub fn is_near_level(price: f64, level: f64, tolerance: f64) -> bool {
     (price - level).abs() <= tolerance
+}
+
+/// Compute Fibonacci retracement levels from prior day's high and low
+/// Returns levels as (price, LevelType) pairs
+pub fn compute_fibonacci_levels(pdh: f64, pdl: f64, date: NaiveDate) -> Vec<KeyLevel> {
+    let range = pdh - pdl;
+    if range <= 0.0 {
+        return Vec::new();
+    }
+
+    // Fibonacci retracement levels (from high)
+    // These are potential support levels when price retraces from high
+    let fib_ratios = [
+        (0.236, LevelType::Fib236),
+        (0.382, LevelType::Fib382),
+        (0.500, LevelType::Fib500),
+        (0.618, LevelType::Fib618),
+        (0.786, LevelType::Fib786),
+    ];
+
+    fib_ratios
+        .iter()
+        .map(|(ratio, level_type)| KeyLevel {
+            price: pdh - range * ratio,
+            level_type: *level_type,
+            date,
+            strength: if *ratio == 0.618 { 1.0 } else { 0.8 }, // 61.8% is golden ratio, strongest
+        })
+        .collect()
+}
+
+/// Extended levels including weekly and monthly data
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ExtendedLevels {
+    pub weekly_high: Option<f64>,
+    pub weekly_low: Option<f64>,
+    pub weekly_open: Option<f64>,
+    pub monthly_high: Option<f64>,
+    pub monthly_low: Option<f64>,
+    pub monthly_open: Option<f64>,
+    pub prior_day_vwap: Option<f64>,
+}
+
+/// Compute weekly levels from prior week's bars
+pub fn compute_weekly_levels(bars: &[Bar], current_date: NaiveDate) -> ExtendedLevels {
+    use chrono::{Datelike, Weekday};
+
+    let mut extended = ExtendedLevels::default();
+
+    if bars.is_empty() {
+        return extended;
+    }
+
+    // Find bars from prior week
+    // Week starts on Sunday (or Monday depending on preference)
+    let current_week_start = current_date
+        - chrono::Duration::days(current_date.weekday().num_days_from_sunday() as i64);
+
+    let prior_week_end = current_week_start - chrono::Duration::days(1);
+    let prior_week_start = prior_week_end
+        - chrono::Duration::days(prior_week_end.weekday().num_days_from_sunday() as i64);
+
+    let prior_week_bars: Vec<_> = bars
+        .iter()
+        .filter(|b| {
+            let bar_date = b.timestamp.date_naive();
+            bar_date >= prior_week_start && bar_date <= prior_week_end
+        })
+        .collect();
+
+    if !prior_week_bars.is_empty() {
+        extended.weekly_high = Some(
+            prior_week_bars
+                .iter()
+                .map(|b| b.high)
+                .fold(f64::NEG_INFINITY, f64::max),
+        );
+        extended.weekly_low = Some(
+            prior_week_bars
+                .iter()
+                .map(|b| b.low)
+                .fold(f64::INFINITY, f64::min),
+        );
+        extended.weekly_open = prior_week_bars.first().map(|b| b.open);
+    }
+
+    // Compute prior day VWAP
+    let prior_day = current_date - chrono::Duration::days(1);
+    let prior_day_bars: Vec<_> = bars
+        .iter()
+        .filter(|b| b.timestamp.date_naive() == prior_day)
+        .collect();
+
+    if !prior_day_bars.is_empty() {
+        let mut vwap_num = 0.0f64;
+        let mut vwap_den = 0u64;
+
+        for bar in &prior_day_bars {
+            let typical = (bar.high + bar.low + bar.close) / 3.0;
+            vwap_num += typical * bar.volume as f64;
+            vwap_den += bar.volume;
+        }
+
+        if vwap_den > 0 {
+            extended.prior_day_vwap = Some(vwap_num / vwap_den as f64);
+        }
+    }
+
+    // Find bars from prior month
+    let current_month_start = NaiveDate::from_ymd_opt(current_date.year(), current_date.month(), 1)
+        .unwrap_or(current_date);
+
+    let prior_month_end = current_month_start - chrono::Duration::days(1);
+    let prior_month_start =
+        NaiveDate::from_ymd_opt(prior_month_end.year(), prior_month_end.month(), 1)
+            .unwrap_or(prior_month_end);
+
+    let prior_month_bars: Vec<_> = bars
+        .iter()
+        .filter(|b| {
+            let bar_date = b.timestamp.date_naive();
+            bar_date >= prior_month_start && bar_date <= prior_month_end
+        })
+        .collect();
+
+    if !prior_month_bars.is_empty() {
+        extended.monthly_high = Some(
+            prior_month_bars
+                .iter()
+                .map(|b| b.high)
+                .fold(f64::NEG_INFINITY, f64::max),
+        );
+        extended.monthly_low = Some(
+            prior_month_bars
+                .iter()
+                .map(|b| b.low)
+                .fold(f64::INFINITY, f64::min),
+        );
+        extended.monthly_open = prior_month_bars.first().map(|b| b.open);
+    }
+
+    extended
+}
+
+/// Convert extended levels to KeyLevel structs
+pub fn extended_levels_to_key_levels(extended: &ExtendedLevels, date: NaiveDate) -> Vec<KeyLevel> {
+    let mut levels = Vec::new();
+
+    if let Some(wh) = extended.weekly_high {
+        levels.push(KeyLevel {
+            price: wh,
+            level_type: LevelType::WeeklyHigh,
+            date,
+            strength: 0.9, // Weekly levels are strong
+        });
+    }
+    if let Some(wl) = extended.weekly_low {
+        levels.push(KeyLevel {
+            price: wl,
+            level_type: LevelType::WeeklyLow,
+            date,
+            strength: 0.9,
+        });
+    }
+    if let Some(wo) = extended.weekly_open {
+        levels.push(KeyLevel {
+            price: wo,
+            level_type: LevelType::WeeklyOpen,
+            date,
+            strength: 0.7,
+        });
+    }
+    if let Some(mh) = extended.monthly_high {
+        levels.push(KeyLevel {
+            price: mh,
+            level_type: LevelType::MonthlyHigh,
+            date,
+            strength: 1.0, // Monthly levels are very strong
+        });
+    }
+    if let Some(ml) = extended.monthly_low {
+        levels.push(KeyLevel {
+            price: ml,
+            level_type: LevelType::MonthlyLow,
+            date,
+            strength: 1.0,
+        });
+    }
+    if let Some(mo) = extended.monthly_open {
+        levels.push(KeyLevel {
+            price: mo,
+            level_type: LevelType::MonthlyOpen,
+            date,
+            strength: 0.8,
+        });
+    }
+    if let Some(vwap) = extended.prior_day_vwap {
+        levels.push(KeyLevel {
+            price: vwap,
+            level_type: LevelType::VWAP,
+            date,
+            strength: 0.85, // Prior day VWAP is significant
+        });
+    }
+
+    levels
 }
 
 #[cfg(test)]

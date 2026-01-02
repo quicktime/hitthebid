@@ -30,6 +30,9 @@ pub struct StateMachineConfig {
     pub min_impulse_score: u8,
     /// Maximum retrace ratio before impulse is invalidated (default: 0.7 = 70%)
     pub max_retrace_ratio: f64,
+    /// Minimum bars before considering switching to a new breakout (default: 60 = 1 min)
+    /// If a new breakout is detected after this many bars and current impulse is weak, switch
+    pub min_bars_before_switch: usize,
 }
 
 impl Default for StateMachineConfig {
@@ -37,10 +40,11 @@ impl Default for StateMachineConfig {
         Self {
             breakout_threshold: 2.0,
             max_impulse_bars: 300,   // 5 minutes
-            min_impulse_size: 30.0,
+            min_impulse_size: 30.0,  // 30 points minimum
             max_hunting_bars: 600,   // 10 minutes
-            min_impulse_score: 4,
-            max_retrace_ratio: 0.7,  // 70% retrace allowed (was 50%)
+            min_impulse_score: 4,    // High quality impulses only
+            max_retrace_ratio: 0.7,  // 70% retrace max
+            min_bars_before_switch: 30, // 30 seconds before considering switch
         }
     }
 }
@@ -347,6 +351,8 @@ impl TradingStateMachine {
         let avg_volume = self.avg_volume();
         let bar_count = self.bar_count;
         let max_impulse_bars = self.config.max_impulse_bars;
+        let min_bars_before_switch = self.config.min_bars_before_switch;
+        let breakout_threshold = self.config.breakout_threshold;
 
         let Some(ref mut impulse) = self.active_impulse else {
             // Should not happen, but recover gracefully
@@ -359,11 +365,64 @@ impl TradingStateMachine {
 
         // Check timeout
         let elapsed_bars = bar_count - impulse.start_bar_idx;
-        if elapsed_bars > max_impulse_bars {
+        if elapsed_bars >= max_impulse_bars {
             self.state = TradingState::Reset;
             return Some(StateTransition::ImpulseInvalid {
                 reason: format!("Impulse timed out after {} bars", elapsed_bars),
             });
+        }
+
+        // NON-BLOCKING BREAKOUT DETECTION:
+        // Check for new breakouts while profiling. If current impulse is weak
+        // (hasn't met size threshold after min_bars_before_switch), switch to the new breakout.
+        let current_impulse_weak = !impulse.builder.is_sufficient_size();
+
+        if elapsed_bars >= min_bars_before_switch && current_impulse_weak {
+            // EARLY TIMEOUT: If impulse is still weak after max_impulse_bars, abort it
+            // LOOSENED: Use full max_impulse_bars instead of hardcoded 150
+            if elapsed_bars >= max_impulse_bars {
+                self.state = TradingState::Reset;
+                return Some(StateTransition::ImpulseInvalid {
+                    reason: format!("Weak impulse timeout after {} bars (no size progress)", elapsed_bars),
+                });
+            }
+
+            // Check for new breakout to switch to
+            if let Some(ref levels) = self.daily_levels {
+                if let Some((new_level, new_direction)) = levels.check_breakout(bar.close, breakout_threshold) {
+                    // Don't switch to same direction breakout at same level type
+                    let same_breakout = new_level == impulse.broken_level && new_direction == impulse.direction;
+
+                    if !same_breakout {
+                        // Switch to new breakout - abandon current weak impulse
+                        let old_direction = impulse.direction;
+
+                        // Start new impulse
+                        let id = Uuid::new_v4();
+                        let builder = RealTimeImpulseBuilder::new(bar, new_direction);
+
+                        self.active_impulse = Some(ActiveImpulse {
+                            id,
+                            direction: new_direction,
+                            broken_level: new_level,
+                            builder,
+                            trades: Vec::new(),
+                            start_bar_idx: self.bar_count,
+                        });
+
+                        tracing::info!(
+                            "IMPULSE SWITCH: Abandoned weak {:?} impulse after {} bars, switching to {:?} breakout at {:.2}",
+                            old_direction, elapsed_bars, new_direction, bar.close
+                        );
+
+                        return Some(StateTransition::BreakoutDetected {
+                            level: new_level,
+                            direction: new_direction,
+                            price: bar.close,
+                        });
+                    }
+                }
+            }
         }
 
         // Check if impulse meets minimum size
@@ -430,7 +489,7 @@ impl TradingStateMachine {
     }
 
     /// Process bar while hunting for LVN retest
-    fn process_hunting(&mut self, _bar: &Bar) -> Option<StateTransition> {
+    fn process_hunting(&mut self, bar: &Bar) -> Option<StateTransition> {
         let Some(start_bar) = self.hunting_start_bar else {
             // Should not happen
             self.state = TradingState::WaitingForBreakout;
@@ -439,9 +498,48 @@ impl TradingStateMachine {
 
         // Check hunting timeout
         let elapsed_bars = self.bar_count - start_bar;
-        if elapsed_bars > self.config.max_hunting_bars {
+        if elapsed_bars >= self.config.max_hunting_bars {
             self.state = TradingState::Reset;
             return Some(StateTransition::HuntingTimeout);
+        }
+
+        // NON-BLOCKING: Check for new breakouts while hunting
+        // If a new breakout appears after some time hunting, switch to it
+        // This prevents missing opportunities while waiting for a retest that may never come
+        if elapsed_bars >= self.config.min_bars_before_switch {
+            if let Some(ref levels) = self.daily_levels {
+                if let Some((new_level, new_direction)) = levels.check_breakout(bar.close, self.config.breakout_threshold) {
+                    // Abandon hunting, start profiling new impulse
+                    let id = Uuid::new_v4();
+                    let builder = RealTimeImpulseBuilder::new(bar, new_direction);
+
+                    // Clear old LVNs from abandoned hunt
+                    self.active_lvns.clear();
+                    self.hunting_start_bar = None;
+
+                    self.active_impulse = Some(ActiveImpulse {
+                        id,
+                        direction: new_direction,
+                        broken_level: new_level,
+                        builder,
+                        trades: Vec::new(),
+                        start_bar_idx: self.bar_count,
+                    });
+
+                    self.state = TradingState::ProfilingImpulse;
+
+                    tracing::info!(
+                        "HUNTING SWITCH: Abandoned hunting after {} bars, switching to {:?} breakout at {:.2}",
+                        elapsed_bars, new_direction, bar.close
+                    );
+
+                    return Some(StateTransition::BreakoutDetected {
+                        level: new_level,
+                        direction: new_direction,
+                        price: bar.close,
+                    });
+                }
+            }
         }
 
         // The actual signal detection is handled by LvnSignalGenerator

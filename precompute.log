@@ -1,0 +1,1037 @@
+[2m2025-12-30T18:15:18.720170Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m === PRECOMPUTE SIGNALS ===
+[2m2025-12-30T18:15:18.720251Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Data directory: "/Users/ao/Downloads/GLBX-20251227-BFHBEFSEP6"
+[2m2025-12-30T18:15:18.720254Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Cache directory: "cache_2025"
+[2m2025-12-30T18:15:18.720914Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Found 276 trade files to process
+[2m2025-12-30T18:15:18.720958Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Found 0 cached dates
+[2m2025-12-30T18:15:18.721015Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m 276 files need processing
+[2m2025-12-30T18:15:18.721017Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Processing 276 days in parallel...
+[2m2025-12-30T18:15:18.966554Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250324: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:19.039288Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 286229 trades through ProcessingState
+[2m2025-12-30T18:15:19.042868Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 332081 trades through ProcessingState
+[2m2025-12-30T18:15:19.116624Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250325: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:19.152856Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 179054 trades through ProcessingState
+[2m2025-12-30T18:15:19.214656Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 343433 trades through ProcessingState
+[2m2025-12-30T18:15:19.220505Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 475657 trades through ProcessingState
+[2m2025-12-30T18:15:19.270778Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 521058 trades through ProcessingState
+[2m2025-12-30T18:15:19.382300Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250326: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:19.444997Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 600168 trades through ProcessingState
+[2m2025-12-30T18:15:19.661262Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250327: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:19.999607Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250328: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:20.008068Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250330: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:20.419451Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250331: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:20.964831Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 529839 trades through ProcessingState
+[2m2025-12-30T18:15:42.632773Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:15:42.632806Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:15:42.641384Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250318: 39054 bars, 112 LVNs, 1 signals
+[2m2025-12-30T18:15:43.142447Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 108744 trades through ProcessingState
+[2m2025-12-30T18:15:54.025267Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:15:54.025287Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:15:54.026830Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250319: 30390 bars, 108 LVNs, 3 signals
+[2m2025-12-30T18:15:54.424333Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 58630 trades through ProcessingState
+[2m2025-12-30T18:15:58.612091Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:15:58.612113Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:15:58.612941Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250320: 22269 bars, 57 LVNs, 1 signals
+[2m2025-12-30T18:15:58.917830Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 2997 trades through ProcessingState
+[2m2025-12-30T18:15:58.962850Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:15:58.962865Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:15:58.963635Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:15:58.963647Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:15:58.964173Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250321: 1752 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:15:58.971521Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250323: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:15:58.974110Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250211: 44243 bars, 32 LVNs, 3 signals
+[2m2025-12-30T18:15:59.383887Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 366899 trades through ProcessingState
+[2m2025-12-30T18:15:59.605062Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 534845 trades through ProcessingState
+[2m2025-12-30T18:16:05.968591Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:16:05.968612Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:16:05.972170Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250122: 46147 bars, 19 LVNs, 6 signals
+[2m2025-12-30T18:16:06.288722Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 314328 trades through ProcessingState
+[2m2025-12-30T18:16:10.616643Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:16:10.616662Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:10.625248Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250613: 50270 bars, 223 LVNs, 1 signals
+[2m2025-12-30T18:16:10.635077Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 7902 trades through ProcessingState
+[2m2025-12-30T18:16:10.731585Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:16:10.731604Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:10.731924Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250615: 2571 bars, 4 LVNs, 1 signals
+[2m2025-12-30T18:16:11.004946Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 121035 trades through ProcessingState
+[2m2025-12-30T18:16:24.335004Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:16:24.335026Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:24.336734Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250616: 32267 bars, 43 LVNs, 2 signals
+[2m2025-12-30T18:16:24.664108Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 68438 trades through ProcessingState
+[2m2025-12-30T18:16:27.548194Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:16:27.548217Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 9 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:27.566870Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250102: 53615 bars, 183 LVNs, 9 signals
+[2m2025-12-30T18:16:27.927410Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 322097 trades through ProcessingState
+[2m2025-12-30T18:16:28.450633Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:16:28.451060Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:28.453777Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250617: 24655 bars, 37 LVNs, 3 signals
+[2m2025-12-30T18:16:28.735622Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 55926 trades through ProcessingState
+[2m2025-12-30T18:16:31.705314Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:16:31.705356Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:16:31.707478Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250618: 20257 bars, 47 LVNs, 4 signals
+[2m2025-12-30T18:16:31.790748Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 9774 trades through ProcessingState
+[2m2025-12-30T18:16:32.095798Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:16:32.095822Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:32.096232Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250619: 5001 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:16:32.353715Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 2480 trades through ProcessingState
+[2m2025-12-30T18:16:32.397376Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:16:32.397529Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:32.398254Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250620: 1237 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:16:32.405599Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250622: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:32.669173Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250623: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:32.880735Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250624: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.084429Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250625: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.259867Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250626: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.453858Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250627: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.459285Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250629: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.625045Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250630: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:16:33.680773Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:16:33.680810Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:33.697755Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250303: 55288 bars, 189 LVNs, 4 signals
+[2m2025-12-30T18:16:33.921380Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 317741 trades through ProcessingState
+[2m2025-12-30T18:16:34.467462Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:16:34.467490Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:34.474946Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250401: 54213 bars, 132 LVNs, 4 signals
+[2m2025-12-30T18:16:34.539304Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 678027 trades through ProcessingState
+[2m2025-12-30T18:16:34.716694Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:16:34.716723Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:34.738252Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250313: 56525 bars, 249 LVNs, 1 signals
+[2m2025-12-30T18:16:35.138749Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 598230 trades through ProcessingState
+[2m2025-12-30T18:16:35.282455Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 469687 trades through ProcessingState
+[2m2025-12-30T18:16:49.632307Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:16:49.632331Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:16:49.636605Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250212: 44270 bars, 116 LVNs, 6 signals
+[2m2025-12-30T18:16:50.022263Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 366398 trades through ProcessingState
+[2m2025-12-30T18:16:50.081630Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:16:50.081649Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:16:50.089935Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250123: 46000 bars, 53 LVNs, 3 signals
+[2m2025-12-30T18:16:50.436073Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 341095 trades through ProcessingState
+[2m2025-12-30T18:17:10.002659Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:17:10.002681Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:10.010158Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250103: 44659 bars, 64 LVNs, 4 signals
+[2m2025-12-30T18:17:10.012818Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 3550 trades through ProcessingState
+[2m2025-12-30T18:17:10.024811Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:10.024824Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:10.025278Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250105: 1278 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:17:10.457540Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 379963 trades through ProcessingState
+[2m2025-12-30T18:17:11.256754Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:17:11.256775Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:11.262993Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250307: 49488 bars, 296 LVNs, 4 signals
+[2m2025-12-30T18:17:11.273534Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 14268 trades through ProcessingState
+[2m2025-12-30T18:17:11.512223Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:11.512239Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:11.512533Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250309: 3809 bars, 22 LVNs, 1 signals
+[2m2025-12-30T18:17:12.189774Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 552459 trades through ProcessingState
+[2m2025-12-30T18:17:19.465322Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:19.465345Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:19.468943Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250701: 44380 bars, 68 LVNs, 1 signals
+[2m2025-12-30T18:17:19.765941Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 265255 trades through ProcessingState
+[2m2025-12-30T18:17:39.880635Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:17:39.880660Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 3 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:17:39.892284Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250124: 46347 bars, 15 LVNs, 8 signals
+[2m2025-12-30T18:17:39.902782Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 15647 trades through ProcessingState
+[2m2025-12-30T18:17:40.095051Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:40.095072Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:40.095419Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250126: 2744 bars, 6 LVNs, 1 signals
+[2m2025-12-30T18:17:41.086853Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 718392 trades through ProcessingState
+[2m2025-12-30T18:17:41.700228Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:17:41.700265Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:17:41.710639Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250314: 51529 bars, 72 LVNs, 7 signals
+[2m2025-12-30T18:17:41.723410Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 11792 trades through ProcessingState
+[2m2025-12-30T18:17:41.872693Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:41.872711Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:41.872987Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250316: 3447 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:17:42.465696Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 283202 trades through ProcessingState
+[2m2025-12-30T18:17:44.770727Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:17:44.770757Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:44.778246Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250213: 47831 bars, 93 LVNs, 1 signals
+[2m2025-12-30T18:17:45.048670Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 285004 trades through ProcessingState
+[2m2025-12-30T18:17:59.725885Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:17:59.725904Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:17:59.729067Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250702: 44854 bars, 32 LVNs, 2 signals
+[2m2025-12-30T18:17:59.942245Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 177294 trades through ProcessingState
+[2m2025-12-30T18:18:00.131229Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 12 signals
+[2m2025-12-30T18:18:00.131253Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 12 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:00.138699Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250402: 54231 bars, 389 LVNs, 12 signals
+[2m2025-12-30T18:18:00.976604Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 604002 trades through ProcessingState
+[2m2025-12-30T18:18:04.907340Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:04.907357Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:04.927319Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250304: 58135 bars, 312 LVNs, 1 signals
+[2m2025-12-30T18:18:05.619883Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 558724 trades through ProcessingState
+[2m2025-12-30T18:18:06.046303Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:18:06.046335Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:06.053187Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250106: 49701 bars, 58 LVNs, 2 signals
+[2m2025-12-30T18:18:06.515675Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 443535 trades through ProcessingState
+[2m2025-12-30T18:18:17.062183Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:17.062207Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:17.064590Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250703: 30639 bars, 7 LVNs, 1 signals
+[2m2025-12-30T18:18:17.100051Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 51498 trades through ProcessingState
+[2m2025-12-30T18:18:19.087798Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:19.087817Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:19.088476Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250704: 19379 bars, 2 LVNs, 1 signals
+[2m2025-12-30T18:18:19.095096Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8731 trades through ProcessingState
+[2m2025-12-30T18:18:19.177325Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:19.177366Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:19.178126Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250706: 2768 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:18:19.503828Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 303194 trades through ProcessingState
+[2m2025-12-30T18:18:24.377846Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:18:24.377868Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:24.387196Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250317: 45278 bars, 181 LVNs, 4 signals
+[2m2025-12-30T18:18:24.394868Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 9845 trades through ProcessingState
+[2m2025-12-30T18:18:24.537577Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:24.537611Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:24.538521Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250504: 3056 bars, 2 LVNs, 1 signals
+[2m2025-12-30T18:18:25.006551Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 283587 trades through ProcessingState
+[2m2025-12-30T18:18:26.162828Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:18:26.162849Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:26.166436Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250214: 44896 bars, 3 LVNs, 2 signals
+[2m2025-12-30T18:18:26.181383Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 7020 trades through ProcessingState
+[2m2025-12-30T18:18:26.237236Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:18:26.237250Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:18:26.237539Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250216: 1795 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:18:26.331069Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 62705 trades through ProcessingState
+[2m2025-12-30T18:18:29.940839Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:18:29.940856Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:29.941815Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250217: 22032 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:18:30.377099Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 308550 trades through ProcessingState
+[2m2025-12-30T18:18:36.171659Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:18:36.171673Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:18:36.180348Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250310: 56199 bars, 230 LVNs, 1 signals
+[2m2025-12-30T18:18:37.234111Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 581338 trades through ProcessingState
+[2m2025-12-30T18:19:01.857089Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:19:01.857119Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:01.877387Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250707: 44611 bars, 40 LVNs, 1 signals
+[2m2025-12-30T18:19:02.179081Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 268686 trades through ProcessingState
+[2m2025-12-30T18:19:08.557187Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:19:08.557219Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 9 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:08.561093Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250505: 47106 bars, 64 LVNs, 9 signals
+[2m2025-12-30T18:19:08.585519Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:19:08.585542Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:08.599915Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250107: 48473 bars, 138 LVNs, 2 signals
+[2m2025-12-30T18:19:09.004626Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 379983 trades through ProcessingState
+[2m2025-12-30T18:19:09.139414Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 444604 trades through ProcessingState
+[2m2025-12-30T18:19:14.591552Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:19:14.591575Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:19:14.595481Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250218: 44466 bars, 48 LVNs, 4 signals
+[2m2025-12-30T18:19:14.923846Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 326514 trades through ProcessingState
+[2m2025-12-30T18:19:22.319493Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:19:22.319514Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:22.334268Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250305: 55198 bars, 362 LVNs, 1 signals
+[2m2025-12-30T18:19:22.998722Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 534118 trades through ProcessingState
+[2m2025-12-30T18:19:26.173520Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:19:26.173541Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:19:26.205989Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250403: 58988 bars, 256 LVNs, 6 signals
+[2m2025-12-30T18:19:27.420834Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 869909 trades through ProcessingState
+[2m2025-12-30T18:19:38.940606Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:19:38.940682Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:38.951071Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250708: 42483 bars, 22 LVNs, 8 signals
+[2m2025-12-30T18:19:39.258810Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 281614 trades through ProcessingState
+[2m2025-12-30T18:19:39.284555Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:19:39.284577Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:19:39.295577Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250127: 67907 bars, 363 LVNs, 7 signals
+[2m2025-12-30T18:19:39.820334Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 442498 trades through ProcessingState
+[2m2025-12-30T18:20:00.366676Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:20:00.366699Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:20:00.370975Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250219: 45087 bars, 29 LVNs, 4 signals
+[2m2025-12-30T18:20:00.777158Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 369917 trades through ProcessingState
+[2m2025-12-30T18:20:02.189650Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:20:02.189685Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:02.201967Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250311: 58350 bars, 369 LVNs, 1 signals
+[2m2025-12-30T18:20:02.751547Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 484505 trades through ProcessingState
+[2m2025-12-30T18:20:04.305843Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:20:04.305864Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:04.309995Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250506: 51828 bars, 139 LVNs, 2 signals
+[2m2025-12-30T18:20:04.780281Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 416259 trades through ProcessingState
+[2m2025-12-30T18:20:14.737522Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:20:14.737540Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:14.743700Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250108: 51035 bars, 208 LVNs, 3 signals
+[2m2025-12-30T18:20:14.805538Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 62235 trades through ProcessingState
+[2m2025-12-30T18:20:16.788517Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:20:16.788543Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:16.796075Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250709: 41016 bars, 43 LVNs, 5 signals
+[2m2025-12-30T18:20:17.077486Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 248063 trades through ProcessingState
+[2m2025-12-30T18:20:17.399130Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:20:17.399289Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:17.401601Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250109: 21428 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:20:17.955362Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 473478 trades through ProcessingState
+[2m2025-12-30T18:20:40.311688Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:20:40.311708Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:40.318174Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250306: 53132 bars, 317 LVNs, 3 signals
+[2m2025-12-30T18:20:40.323373Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5890 trades through ProcessingState
+[2m2025-12-30T18:20:40.385635Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:20:40.385677Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:40.386274Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250112: 1750 bars, 1 LVNs, 1 signals
+[2m2025-12-30T18:20:40.917724Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 426776 trades through ProcessingState
+[2m2025-12-30T18:20:48.363676Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:20:48.363695Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:48.369113Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250128: 53026 bars, 94 LVNs, 2 signals
+[2m2025-12-30T18:20:48.909780Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 443768 trades through ProcessingState
+[2m2025-12-30T18:20:51.860092Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:20:51.860133Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:20:51.868408Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250710: 41705 bars, 24 LVNs, 5 signals
+[2m2025-12-30T18:20:52.179032Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 288677 trades through ProcessingState
+[2m2025-12-30T18:20:52.765733Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:20:52.765753Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:20:52.770231Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250220: 45383 bars, 57 LVNs, 3 signals
+[2m2025-12-30T18:20:53.182657Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 459018 trades through ProcessingState
+[2m2025-12-30T18:21:01.514192Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:21:01.514212Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:01.524988Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250507: 49265 bars, 127 LVNs, 5 signals
+[2m2025-12-30T18:21:01.976982Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 397731 trades through ProcessingState
+[2m2025-12-30T18:21:10.822539Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:21:10.822561Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:10.830450Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250312: 50549 bars, 176 LVNs, 3 signals
+[2m2025-12-30T18:21:11.550324Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 547079 trades through ProcessingState
+[2m2025-12-30T18:21:21.630547Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:21:21.630565Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:21.645264Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250110: 49122 bars, 222 LVNs, 3 signals
+[2m2025-12-30T18:21:21.651648Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8351 trades through ProcessingState
+[2m2025-12-30T18:21:21.731245Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:21:21.731259Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:21:21.731477Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250223: 2229 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:21:22.239118Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 449822 trades through ProcessingState
+[2m2025-12-30T18:21:27.181700Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:21:27.181718Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:27.194271Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250404: 60106 bars, 608 LVNs, 1 signals
+[2m2025-12-30T18:21:27.236079Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 36862 trades through ProcessingState
+[2m2025-12-30T18:21:28.527840Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:21:28.527865Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:28.528409Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250406: 5768 bars, 79 LVNs, 2 signals
+[2m2025-12-30T18:21:29.737580Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 841445 trades through ProcessingState
+[2m2025-12-30T18:21:34.444149Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:21:34.444166Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:34.447816Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250711: 45674 bars, 44 LVNs, 1 signals
+[2m2025-12-30T18:21:34.456643Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 11846 trades through ProcessingState
+[2m2025-12-30T18:21:34.567638Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:21:34.567652Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:34.567892Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250713: 3488 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:21:34.805606Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 256076 trades through ProcessingState
+[2m2025-12-30T18:21:46.309882Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:21:46.309922Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:46.317044Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250113: 53531 bars, 132 LVNs, 1 signals
+[2m2025-12-30T18:21:46.832907Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 460643 trades through ProcessingState
+[2m2025-12-30T18:21:50.745283Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:21:50.745300Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:21:50.750362Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250129: 48547 bars, 183 LVNs, 3 signals
+[2m2025-12-30T18:21:51.242067Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 433865 trades through ProcessingState
+[2m2025-12-30T18:21:57.899602Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:21:57.899621Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:57.904901Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250221: 43970 bars, 77 LVNs, 2 signals
+[2m2025-12-30T18:21:57.921568Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 19238 trades through ProcessingState
+[2m2025-12-30T18:21:58.350683Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:21:58.350703Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:21:58.351095Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250413: 4398 bars, 23 LVNs, 2 signals
+[2m2025-12-30T18:21:58.850545Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 421147 trades through ProcessingState
+[2m2025-12-30T18:22:00.862526Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:22:00.862546Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:00.867483Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250508: 51479 bars, 109 LVNs, 2 signals
+[2m2025-12-30T18:22:01.203756Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 309974 trades through ProcessingState
+[2m2025-12-30T18:22:09.265689Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:22:09.265715Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:09.269219Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250714: 43252 bars, 16 LVNs, 4 signals
+[2m2025-12-30T18:22:09.636784Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 343535 trades through ProcessingState
+[2m2025-12-30T18:22:27.155801Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:22:27.156047Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:27.165676Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250224: 50494 bars, 128 LVNs, 5 signals
+[2m2025-12-30T18:22:27.766402Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:22:27.766427Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:27.776125Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250225: 52556 bars, 203 LVNs, 2 signals
+[2m2025-12-30T18:22:27.847539Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 596423 trades through ProcessingState
+[2m2025-12-30T18:22:28.318966Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 451429 trades through ProcessingState
+[2m2025-12-30T18:22:46.630559Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:22:46.630584Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:46.634962Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250509: 45198 bars, 58 LVNs, 7 signals
+[2m2025-12-30T18:22:46.645774Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 15195 trades through ProcessingState
+[2m2025-12-30T18:22:46.857253Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:22:46.857270Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:46.857587Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250511: 3968 bars, 21 LVNs, 1 signals
+[2m2025-12-30T18:22:47.377426Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 425809 trades through ProcessingState
+[2m2025-12-30T18:22:50.977952Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:22:50.977977Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:51.003059Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250114: 49136 bars, 136 LVNs, 3 signals
+[2m2025-12-30T18:22:51.423030Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 375035 trades through ProcessingState
+[2m2025-12-30T18:22:52.351205Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:22:52.351222Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:52.356364Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250130: 49351 bars, 112 LVNs, 6 signals
+[2m2025-12-30T18:22:52.787446Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 450331 trades through ProcessingState
+[2m2025-12-30T18:22:59.947003Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:22:59.947021Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:22:59.951000Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250715: 49171 bars, 43 LVNs, 1 signals
+[2m2025-12-30T18:23:00.348787Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 358755 trades through ProcessingState
+[2m2025-12-30T18:23:02.624982Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:23:02.625006Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:23:02.629871Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250414: 53020 bars, 243 LVNs, 4 signals
+[2m2025-12-30T18:23:03.055380Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 399244 trades through ProcessingState
+[2m2025-12-30T18:23:32.601028Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:23:32.601046Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:23:32.606689Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250226: 48912 bars, 86 LVNs, 3 signals
+[2m2025-12-30T18:23:33.361612Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 588551 trades through ProcessingState
+[2m2025-12-30T18:23:44.764951Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:23:44.765180Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:23:44.769828Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250716: 44429 bars, 45 LVNs, 1 signals
+[2m2025-12-30T18:23:45.040554Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 280790 trades through ProcessingState
+[2m2025-12-30T18:23:45.530221Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:23:45.530242Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:23:45.534497Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250115: 43532 bars, 53 LVNs, 5 signals
+[2m2025-12-30T18:23:45.982378Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 418800 trades through ProcessingState
+[2m2025-12-30T18:25:49.112808Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:25:49.112827Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:25:49.125980Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250227: 53501 bars, 241 LVNs, 6 signals
+[2m2025-12-30T18:25:49.182615Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 9833 trades through ProcessingState
+[2m2025-12-30T18:25:49.453411Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:25:49.453424Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 3 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:25:49.453989Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250302: 2401 bars, 5 LVNs, 4 signals
+[2m2025-12-30T18:25:50.096148Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 428980 trades through ProcessingState
+[2m2025-12-30T18:25:50.483698Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:25:50.483708Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:25:50.488690Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250131: 47107 bars, 96 LVNs, 4 signals
+[2m2025-12-30T18:25:50.502259Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 19877 trades through ProcessingState
+[2m2025-12-30T18:25:50.803767Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:25:50.803789Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:25:50.804614Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250202: 2889 bars, 3 LVNs, 3 signals
+[2m2025-12-30T18:25:51.346369Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:25:51.346383Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:25:51.351752Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250415: 51795 bars, 190 LVNs, 5 signals
+[2m2025-12-30T18:25:51.354900Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 506018 trades through ProcessingState
+[2m2025-12-30T18:25:51.367059Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:25:51.367096Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:25:51.375252Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250512: 55628 bars, 129 LVNs, 7 signals
+[2m2025-12-30T18:25:51.770855Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 346577 trades through ProcessingState
+[2m2025-12-30T18:25:51.907363Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 487643 trades through ProcessingState
+[2m2025-12-30T18:26:04.669749Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:26:04.669764Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:04.673073Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250717: 45463 bars, 8 LVNs, 2 signals
+[2m2025-12-30T18:26:04.959149Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 268067 trades through ProcessingState
+[2m2025-12-30T18:26:08.895538Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:26:08.895559Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 4 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:26:08.905813Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250407: 69361 bars, 1145 LVNs, 9 signals
+[2m2025-12-30T18:26:09.962942Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 726671 trades through ProcessingState
+[2m2025-12-30T18:26:28.706559Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:26:28.706582Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:26:28.721224Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250228: 53332 bars, 218 LVNs, 8 signals
+[2m2025-12-30T18:26:28.742946Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 24113 trades through ProcessingState
+[2m2025-12-30T18:26:29.215197Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:26:29.215213Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:29.215617Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251012: 4840 bars, 11 LVNs, 2 signals
+[2m2025-12-30T18:26:29.701824Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 419150 trades through ProcessingState
+[2m2025-12-30T18:26:35.204785Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:26:35.204810Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:35.209623Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250116: 51932 bars, 103 LVNs, 2 signals
+[2m2025-12-30T18:26:35.669860Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 392632 trades through ProcessingState
+[2m2025-12-30T18:26:38.850004Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:26:38.850043Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:38.857059Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250718: 38869 bars, 35 LVNs, 4 signals
+[2m2025-12-30T18:26:38.861632Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5592 trades through ProcessingState
+[2m2025-12-30T18:26:38.914251Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:26:38.914267Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:38.914454Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250720: 2228 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:26:39.144225Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 239541 trades through ProcessingState
+[2m2025-12-30T18:26:39.465050Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:26:39.465069Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:39.480094Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250513: 49389 bars, 82 LVNs, 2 signals
+[2m2025-12-30T18:26:39.824643Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 341808 trades through ProcessingState
+[2m2025-12-30T18:26:56.923262Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:26:56.923284Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:26:56.928823Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250902: 52263 bars, 83 LVNs, 8 signals
+[2m2025-12-30T18:26:57.316216Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 354986 trades through ProcessingState
+[2m2025-12-30T18:27:03.952571Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:27:03.952592Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:03.958152Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250416: 54756 bars, 304 LVNs, 5 signals
+[2m2025-12-30T18:27:04.559440Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 453996 trades through ProcessingState
+[2m2025-12-30T18:27:05.245181Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:27:05.245214Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:05.251057Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250203: 58814 bars, 240 LVNs, 4 signals
+[2m2025-12-30T18:27:05.626730Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 345557 trades through ProcessingState
+[2m2025-12-30T18:27:08.885908Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:27:08.885927Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:08.896514Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250721: 39090 bars, 10 LVNs, 2 signals
+[2m2025-12-30T18:27:09.239824Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 343768 trades through ProcessingState
+[2m2025-12-30T18:27:29.619964Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:27:29.619980Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:29.624233Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250514: 49767 bars, 51 LVNs, 6 signals
+[2m2025-12-30T18:27:29.948801Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 364835 trades through ProcessingState
+[2m2025-12-30T18:27:31.263763Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:27:31.263777Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:27:31.278994Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251013: 54146 bars, 121 LVNs, 8 signals
+[2m2025-12-30T18:27:31.913496Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 503378 trades through ProcessingState
+[2m2025-12-30T18:27:36.694720Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:27:36.694987Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:36.704676Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250117: 46255 bars, 74 LVNs, 1 signals
+[2m2025-12-30T18:27:36.715697Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5891 trades through ProcessingState
+[2m2025-12-30T18:27:36.773333Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:27:36.773345Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:36.773537Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250119: 1779 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:27:36.873535Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 114084 trades through ProcessingState
+[2m2025-12-30T18:27:46.002268Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 0 signals
+[2m2025-12-30T18:27:46.002290Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:46.003632Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250120: 28337 bars, 11 LVNs, 0 signals
+[2m2025-12-30T18:27:46.425796Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 351411 trades through ProcessingState
+[2m2025-12-30T18:27:49.155796Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:27:49.155815Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:27:49.159824Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250903: 47074 bars, 52 LVNs, 5 signals
+[2m2025-12-30T18:27:49.596619Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 304490 trades through ProcessingState
+[2m2025-12-30T18:27:53.806009Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:27:53.806026Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:27:53.812919Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250722: 45587 bars, 42 LVNs, 6 signals
+[2m2025-12-30T18:27:54.206605Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 325984 trades through ProcessingState
+[2m2025-12-30T18:27:57.527809Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:27:57.527840Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:27:57.554555Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250408: 60815 bars, 671 LVNs, 5 signals
+[2m2025-12-30T18:27:58.811754Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 805418 trades through ProcessingState
+[2m2025-12-30T18:28:03.691871Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:28:03.691893Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:03.695790Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250204: 50785 bars, 119 LVNs, 3 signals
+[2m2025-12-30T18:28:04.107577Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 342263 trades through ProcessingState
+[2m2025-12-30T18:28:09.896148Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:28:09.896167Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:09.904054Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250417: 49980 bars, 208 LVNs, 5 signals
+[2m2025-12-30T18:28:09.908635Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 6395 trades through ProcessingState
+[2m2025-12-30T18:28:10.015356Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:28:10.015381Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:10.015668Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250420: 2301 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:28:10.419238Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 339614 trades through ProcessingState
+[2m2025-12-30T18:28:26.217274Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:28:26.217318Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:26.222323Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250515: 48630 bars, 64 LVNs, 1 signals
+[2m2025-12-30T18:28:26.548266Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 275961 trades through ProcessingState
+[2m2025-12-30T18:28:32.392782Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:28:32.392814Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:32.407020Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250904: 44943 bars, 37 LVNs, 4 signals
+[2m2025-12-30T18:28:33.000158Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 434518 trades through ProcessingState
+[2m2025-12-30T18:28:38.788689Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:28:38.788706Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:38.803771Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250723: 46344 bars, 34 LVNs, 4 signals
+[2m2025-12-30T18:28:39.101398Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 277437 trades through ProcessingState
+[2m2025-12-30T18:28:42.180666Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:28:42.180684Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:42.184685Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250121: 48739 bars, 106 LVNs, 7 signals
+[2m2025-12-30T18:28:42.440741Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250922: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:42.714052Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250923: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:42.937630Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250924: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:43.270897Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250925: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:43.545371Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250926: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:43.549272Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250928: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:43.786723Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250929: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:44.037346Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250930: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:28:44.349839Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 296344 trades through ProcessingState
+[2m2025-12-30T18:28:52.482360Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:28:52.482400Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:52.493364Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251014: 59237 bars, 193 LVNs, 2 signals
+[2m2025-12-30T18:28:52.980960Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 427201 trades through ProcessingState
+[2m2025-12-30T18:28:55.067786Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:28:55.067802Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:28:55.072384Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250205: 50260 bars, 84 LVNs, 3 signals
+[2m2025-12-30T18:28:55.400896Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 309845 trades through ProcessingState
+[2m2025-12-30T18:29:05.406669Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:29:05.406690Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:05.410715Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250421: 47094 bars, 106 LVNs, 1 signals
+[2m2025-12-30T18:29:05.970793Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 441527 trades through ProcessingState
+[2m2025-12-30T18:29:06.095121Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:29:06.095155Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:06.101285Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250516: 43771 bars, 50 LVNs, 2 signals
+[2m2025-12-30T18:29:06.113993Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 13708 trades through ProcessingState
+[2m2025-12-30T18:29:06.262393Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:29:06.262434Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:06.263097Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250518: 3536 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:29:06.641861Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 333567 trades through ProcessingState
+[2m2025-12-30T18:29:16.983042Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:29:16.983061Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:16.988871Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250724: 43260 bars, 16 LVNs, 4 signals
+[2m2025-12-30T18:29:17.290790Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 239142 trades through ProcessingState
+[2m2025-12-30T18:29:30.215085Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:29:30.215105Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:29:30.223018Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250905: 42236 bars, 66 LVNs, 3 signals
+[2m2025-12-30T18:29:30.230195Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 10053 trades through ProcessingState
+[2m2025-12-30T18:29:30.358260Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:29:30.358277Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:30.358582Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250907: 3275 bars, 4 LVNs, 1 signals
+[2m2025-12-30T18:29:30.684394Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 283893 trades through ProcessingState
+[2m2025-12-30T18:29:31.587896Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:29:31.587915Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:31.592049Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251001: 47244 bars, 35 LVNs, 3 signals
+[2m2025-12-30T18:29:31.922804Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 288909 trades through ProcessingState
+[2m2025-12-30T18:29:42.030004Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:29:42.030027Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:42.034412Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250206: 47125 bars, 81 LVNs, 6 signals
+[2m2025-12-30T18:29:42.524206Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 412159 trades through ProcessingState
+[2m2025-12-30T18:29:48.712757Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:29:48.712787Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:48.716571Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250725: 40490 bars, 6 LVNs, 3 signals
+[2m2025-12-30T18:29:48.723360Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8818 trades through ProcessingState
+[2m2025-12-30T18:29:48.798341Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:29:48.798358Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:48.798600Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250727: 2882 bars, 0 LVNs, 2 signals
+[2m2025-12-30T18:29:49.085297Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 251994 trades through ProcessingState
+[2m2025-12-30T18:29:57.395343Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:29:57.395367Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:29:57.401453Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251015: 50544 bars, 111 LVNs, 1 signals
+[2m2025-12-30T18:29:58.043489Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 525432 trades through ProcessingState
+[2m2025-12-30T18:30:01.355426Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:30:01.355446Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:01.361302Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250519: 53395 bars, 49 LVNs, 3 signals
+[2m2025-12-30T18:30:01.713511Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 293336 trades through ProcessingState
+[2m2025-12-30T18:30:08.046370Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:30:08.046419Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:08.068440Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250409: 65551 bars, 977 LVNs, 5 signals
+[2m2025-12-30T18:30:09.210440Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 739436 trades through ProcessingState
+[2m2025-12-30T18:30:09.234017Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:30:09.234033Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:30:09.238919Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250908: 42367 bars, 23 LVNs, 6 signals
+[2m2025-12-30T18:30:09.575010Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 300134 trades through ProcessingState
+[2m2025-12-30T18:30:11.397540Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:30:11.397558Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:11.400912Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251002: 43760 bars, 31 LVNs, 2 signals
+[2m2025-12-30T18:30:11.722634Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 299362 trades through ProcessingState
+[2m2025-12-30T18:30:13.263901Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:30:13.263921Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:13.268876Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250422: 53191 bars, 200 LVNs, 4 signals
+[2m2025-12-30T18:30:13.888031Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 521350 trades through ProcessingState
+[2m2025-12-30T18:30:22.040143Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:30:22.042622Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:22.045990Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250728: 42069 bars, 4 LVNs, 1 signals
+[2m2025-12-30T18:30:22.416332Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 328954 trades through ProcessingState
+[2m2025-12-30T18:30:36.214270Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:30:36.214291Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:30:36.222821Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250207: 43089 bars, 96 LVNs, 4 signals
+[2m2025-12-30T18:30:36.229992Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8397 trades through ProcessingState
+[2m2025-12-30T18:30:36.379671Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:30:36.379686Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:36.379960Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250209: 2041 bars, 1 LVNs, 2 signals
+[2m2025-12-30T18:30:36.684022Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 263394 trades through ProcessingState
+[2m2025-12-30T18:30:47.083798Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:30:47.083814Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:30:47.087681Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250520: 48102 bars, 47 LVNs, 6 signals
+[2m2025-12-30T18:30:47.602819Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 407212 trades through ProcessingState
+[2m2025-12-30T18:30:51.718535Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:30:51.718557Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:30:51.722395Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250909: 43536 bars, 16 LVNs, 6 signals
+[2m2025-12-30T18:30:52.109982Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 326170 trades through ProcessingState
+[2m2025-12-30T18:30:53.096572Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:30:53.096603Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:30:53.111204Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251003: 39512 bars, 46 LVNs, 4 signals
+[2m2025-12-30T18:30:53.116986Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 6942 trades through ProcessingState
+[2m2025-12-30T18:30:53.191487Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:30:53.191498Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:30:53.191684Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251005: 2647 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:30:53.467190Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 261793 trades through ProcessingState
+[2m2025-12-30T18:31:06.503931Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:31:06.503952Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:06.510094Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250729: 41969 bars, 33 LVNs, 2 signals
+[2m2025-12-30T18:31:06.964441Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 350636 trades through ProcessingState
+[2m2025-12-30T18:31:13.459974Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:31:13.460009Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 9 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:13.476547Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251016: 51178 bars, 247 LVNs, 9 signals
+[2m2025-12-30T18:31:14.265412Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 508650 trades through ProcessingState
+[2m2025-12-30T18:31:19.634690Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:31:19.634706Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:19.656199Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250210: 44720 bars, 10 LVNs, 4 signals
+[2m2025-12-30T18:31:19.953424Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 271411 trades through ProcessingState
+[2m2025-12-30T18:31:32.040968Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:31:32.040985Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:32.048899Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250423: 54897 bars, 211 LVNs, 1 signals
+[2m2025-12-30T18:31:32.615590Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 412194 trades through ProcessingState
+[2m2025-12-30T18:31:35.128972Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:31:35.128993Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:35.147290Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251006: 44109 bars, 2 LVNs, 7 signals
+[2m2025-12-30T18:31:35.548512Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 330478 trades through ProcessingState
+[2m2025-12-30T18:31:42.828395Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:31:42.828435Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:42.838986Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250910: 43463 bars, 25 LVNs, 2 signals
+[2m2025-12-30T18:31:43.151278Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 277905 trades through ProcessingState
+[2m2025-12-30T18:31:51.200942Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:31:51.200972Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:51.208429Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250521: 49386 bars, 176 LVNs, 4 signals
+[2m2025-12-30T18:31:51.708692Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 350221 trades through ProcessingState
+[2m2025-12-30T18:31:55.433888Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:31:55.433912Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:31:55.438343Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250730: 44159 bars, 70 LVNs, 3 signals
+[2m2025-12-30T18:31:56.029484Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 470307 trades through ProcessingState
+[2m2025-12-30T18:32:00.451454Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:32:00.451485Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:00.461752Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251008: 43695 bars, 18 LVNs, 2 signals
+[2m2025-12-30T18:32:00.830350Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 309550 trades through ProcessingState
+[2m2025-12-30T18:32:08.525674Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 0 signals
+[2m2025-12-30T18:32:08.525693Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:08.534888Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250410: 62461 bars, 747 LVNs, 0 signals
+[2m2025-12-30T18:32:09.431425Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 515331 trades through ProcessingState
+[2m2025-12-30T18:32:24.885892Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:32:24.885933Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:32:24.890990Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251007: 43718 bars, 26 LVNs, 4 signals
+[2m2025-12-30T18:32:25.220834Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 65525 trades through ProcessingState
+[2m2025-12-30T18:32:25.437156Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:32:25.437191Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:32:25.445801Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250911: 41870 bars, 7 LVNs, 6 signals
+[2m2025-12-30T18:32:25.713059Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 236003 trades through ProcessingState
+[2m2025-12-30T18:32:29.933544Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:29.933561Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:29.934502Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250916: 24567 bars, 5 LVNs, 1 signals
+[2m2025-12-30T18:32:30.355615Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 78779 trades through ProcessingState
+[2m2025-12-30T18:32:36.218406Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:32:36.218433Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 4 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:36.237440Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251017: 55654 bars, 231 LVNs, 4 signals
+[2m2025-12-30T18:32:36.244546Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8760 trades through ProcessingState
+[2m2025-12-30T18:32:36.354453Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:32:36.354475Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:36.354729Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251019: 3117 bars, 1 LVNs, 2 signals
+[2m2025-12-30T18:32:36.367550Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:36.367567Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:36.378331Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250917: 22576 bars, 57 LVNs, 1 signals
+[2m2025-12-30T18:32:36.691481Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 283389 trades through ProcessingState
+[2m2025-12-30T18:32:36.766693Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 48126 trades through ProcessingState
+[2m2025-12-30T18:32:40.215523Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:40.215540Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:40.216199Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250918: 20047 bars, 29 LVNs, 1 signals
+[2m2025-12-30T18:32:40.484997Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 1533 trades through ProcessingState
+[2m2025-12-30T18:32:40.496695Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:40.496707Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:40.496843Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250919: 881 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:32:40.500414Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250921: 0 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:32:40.505391Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 3587 trades through ProcessingState
+[2m2025-12-30T18:32:40.520363Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:40.520381Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:40.520555Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250914: 1702 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:32:40.858365Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 140510 trades through ProcessingState
+[2m2025-12-30T18:32:43.782631Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:32:43.782663Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:43.796526Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250424: 54075 bars, 162 LVNs, 2 signals
+[2m2025-12-30T18:32:44.166866Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:44.166884Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:44.174969Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251009: 44215 bars, 19 LVNs, 1 signals
+[2m2025-12-30T18:32:44.345158Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 404133 trades through ProcessingState
+[2m2025-12-30T18:32:44.802932Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:32:44.802951Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:44.808913Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250522: 48865 bars, 110 LVNs, 6 signals
+[2m2025-12-30T18:32:44.948737Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 638311 trades through ProcessingState
+[2m2025-12-30T18:32:45.328444Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 371003 trades through ProcessingState
+[2m2025-12-30T18:32:58.823702Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:32:58.823727Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:58.827149Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250912: 39129 bars, 15 LVNs, 8 signals
+[2m2025-12-30T18:32:59.338533Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 361629 trades through ProcessingState
+[2m2025-12-30T18:32:59.800384Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:32:59.800401Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:32:59.806626Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250915: 35223 bars, 14 LVNs, 1 signals
+[2m2025-12-30T18:33:00.230277Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 382331 trades through ProcessingState
+[2m2025-12-30T18:33:04.707431Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:33:04.707473Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:33:04.731670Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250731: 51178 bars, 139 LVNs, 2 signals
+[2m2025-12-30T18:33:05.451727Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 512258 trades through ProcessingState
+[2m2025-12-30T18:33:25.150162Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:33:25.150185Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:33:25.155882Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251020: 47404 bars, 34 LVNs, 3 signals
+[2m2025-12-30T18:33:25.565911Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 289625 trades through ProcessingState
+[2m2025-12-30T18:33:41.637854Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:33:41.637878Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:33:41.650980Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250411: 57355 bars, 516 LVNs, 9 signals
+[2m2025-12-30T18:33:42.436614Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 514012 trades through ProcessingState
+[2m2025-12-30T18:33:52.195127Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 11 signals
+[2m2025-12-30T18:33:52.195149Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 11 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:33:52.203742Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250425: 50711 bars, 157 LVNs, 11 signals
+[2m2025-12-30T18:33:52.210124Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 7229 trades through ProcessingState
+[2m2025-12-30T18:33:52.299775Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:33:52.299820Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:33:52.300403Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250427: 2546 bars, 2 LVNs, 1 signals
+[2m2025-12-30T18:33:52.823695Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 344072 trades through ProcessingState
+[2m2025-12-30T18:33:53.439695Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:33:53.439712Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:33:53.446472Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250523: 47641 bars, 148 LVNs, 4 signals
+[2m2025-12-30T18:33:53.470140Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 13176 trades through ProcessingState
+[2m2025-12-30T18:33:53.971524Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:33:53.971544Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:33:53.972137Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250525: 3592 bars, 8 LVNs, 1 signals
+[2m2025-12-30T18:33:54.087155Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 61227 trades through ProcessingState
+[2m2025-12-30T18:33:57.537283Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:33:57.537301Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:33:57.538261Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250526: 22153 bars, 7 LVNs, 1 signals
+[2m2025-12-30T18:33:57.935030Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 289965 trades through ProcessingState
+[2m2025-12-30T18:34:00.488881Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:34:00.488900Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:00.499263Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250428: 46707 bars, 89 LVNs, 7 signals
+[2m2025-12-30T18:34:01.135737Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 393860 trades through ProcessingState
+[2m2025-12-30T18:34:02.126958Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:34:02.126977Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:02.135264Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251031: 45709 bars, 81 LVNs, 3 signals
+[2m2025-12-30T18:34:02.140138Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5404 trades through ProcessingState
+[2m2025-12-30T18:34:02.192666Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:34:02.192680Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:02.192849Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251102: 1818 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:34:02.566419Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 310477 trades through ProcessingState
+[2m2025-12-30T18:34:12.366599Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:34:12.366618Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:12.375378Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251010: 44035 bars, 267 LVNs, 2 signals
+[2m2025-12-30T18:34:12.659410Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:34:12.659427Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:12.663805Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251021: 44585 bars, 61 LVNs, 2 signals
+[2m2025-12-30T18:34:12.965576Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 399565 trades through ProcessingState
+[2m2025-12-30T18:34:13.336014Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 462451 trades through ProcessingState
+[2m2025-12-30T18:34:35.834564Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:34:35.834588Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:34:35.844925Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250801: 52099 bars, 189 LVNs, 4 signals
+[2m2025-12-30T18:34:35.859485Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 13802 trades through ProcessingState
+[2m2025-12-30T18:34:36.126864Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:34:36.126882Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:34:36.127269Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250803: 3914 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:34:36.510740Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 293557 trades through ProcessingState
+[2m2025-12-30T18:34:48.253859Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:34:48.253895Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:34:48.261870Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250527: 48509 bars, 26 LVNs, 6 signals
+[2m2025-12-30T18:34:48.719053Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 308700 trades through ProcessingState
+[2m2025-12-30T18:34:55.694439Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:34:55.694465Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:34:55.706017Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251111: 50045 bars, 61 LVNs, 4 signals
+[2m2025-12-30T18:34:56.269706Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 392525 trades through ProcessingState
+[2m2025-12-30T18:34:56.415453Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:34:56.415489Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:34:56.420507Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251103: 46168 bars, 53 LVNs, 7 signals
+[2m2025-12-30T18:34:56.922185Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 447665 trades through ProcessingState
+[2m2025-12-30T18:35:09.508794Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:35:09.508809Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:09.514738Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250429: 49747 bars, 138 LVNs, 7 signals
+[2m2025-12-30T18:35:09.520779Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8977 trades through ProcessingState
+[2m2025-12-30T18:35:09.687866Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 0 signals
+[2m2025-12-30T18:35:09.687891Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:09.688234Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251116: 2246 bars, 11 LVNs, 0 signals
+[2m2025-12-30T18:35:10.130269Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:35:10.130300Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:35:10.150240Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250430: 52935 bars, 223 LVNs, 5 signals
+[2m2025-12-30T18:35:10.538620Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 498864 trades through ProcessingState
+[2m2025-12-30T18:35:10.660325Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 404441 trades through ProcessingState
+[2m2025-12-30T18:35:28.096158Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:35:28.096180Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:28.103154Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251022: 47532 bars, 172 LVNs, 3 signals
+[2m2025-12-30T18:35:28.540887Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 338677 trades through ProcessingState
+[2m2025-12-30T18:35:28.973419Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:35:28.973435Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:28.979151Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250804: 48559 bars, 33 LVNs, 2 signals
+[2m2025-12-30T18:35:29.538701Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 356375 trades through ProcessingState
+[2m2025-12-30T18:35:33.609926Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:35:33.609945Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:33.625270Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251105: 59017 bars, 180 LVNs, 7 signals
+[2m2025-12-30T18:35:34.431350Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 503382 trades through ProcessingState
+[2m2025-12-30T18:35:41.973879Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:35:41.973901Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:35:41.980774Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250528: 48239 bars, 96 LVNs, 6 signals
+[2m2025-12-30T18:35:42.605887Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 375028 trades through ProcessingState
+[2m2025-12-30T18:36:04.029050Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:36:04.029095Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:04.040576Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251112: 49481 bars, 95 LVNs, 9 signals
+[2m2025-12-30T18:36:05.007653Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 517617 trades through ProcessingState
+[2m2025-12-30T18:36:21.820384Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:36:21.820415Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 3 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:36:21.830341Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250501: 49412 bars, 107 LVNs, 7 signals
+[2m2025-12-30T18:36:22.326570Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 360149 trades through ProcessingState
+[2m2025-12-30T18:36:23.300704Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:36:23.300719Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:23.306264Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251104: 58092 bars, 189 LVNs, 1 signals
+[2m2025-12-30T18:36:24.333138Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 612377 trades through ProcessingState
+[2m2025-12-30T18:36:27.591789Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:36:27.591807Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:36:27.607304Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251023: 47524 bars, 86 LVNs, 5 signals
+[2m2025-12-30T18:36:28.014427Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 290023 trades through ProcessingState
+[2m2025-12-30T18:36:30.004387Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:36:30.004410Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:30.010257Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250805: 46566 bars, 76 LVNs, 5 signals
+[2m2025-12-30T18:36:30.432512Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 336527 trades through ProcessingState
+[2m2025-12-30T18:36:39.151661Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:36:39.151680Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:39.165770Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251117: 55354 bars, 217 LVNs, 5 signals
+[2m2025-12-30T18:36:39.181818Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 11127 trades through ProcessingState
+[2m2025-12-30T18:36:39.329498Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 0 signals
+[2m2025-12-30T18:36:39.329513Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:39.329775Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251026: 3095 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:36:39.662238Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 259820 trades through ProcessingState
+[2m2025-12-30T18:36:55.275301Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:36:55.275322Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:36:55.288428Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250529: 54290 bars, 156 LVNs, 3 signals
+[2m2025-12-30T18:36:55.822799Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 366664 trades through ProcessingState
+[2m2025-12-30T18:37:00.673616Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:37:00.673643Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:00.680817Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251106: 52639 bars, 209 LVNs, 2 signals
+[2m2025-12-30T18:37:01.608118Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 508476 trades through ProcessingState
+[2m2025-12-30T18:37:13.353119Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:37:13.353158Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:13.357393Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251024: 41883 bars, 23 LVNs, 3 signals
+[2m2025-12-30T18:37:13.739772Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 280449 trades through ProcessingState
+[2m2025-12-30T18:37:24.996114Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:37:24.996141Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:25.002250Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251027: 45704 bars, 33 LVNs, 2 signals
+[2m2025-12-30T18:37:25.421783Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 279667 trades through ProcessingState
+[2m2025-12-30T18:37:29.147672Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:37:29.147715Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:29.162047Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250806: 48863 bars, 44 LVNs, 6 signals
+[2m2025-12-30T18:37:29.750046Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 368658 trades through ProcessingState
+[2m2025-12-30T18:37:31.478759Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:37:31.478779Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:31.488433Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250502: 48642 bars, 127 LVNs, 3 signals
+[2m2025-12-30T18:37:32.757708Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 582517 trades through ProcessingState
+[2m2025-12-30T18:37:38.380217Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:37:38.380248Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:37:38.405720Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251113: 53346 bars, 172 LVNs, 3 signals
+[2m2025-12-30T18:37:38.424063Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 7746 trades through ProcessingState
+[2m2025-12-30T18:37:38.482831Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:37:38.482856Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:37:38.484173Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250601: 2571 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:37:38.893798Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 301753 trades through ProcessingState
+[2m2025-12-30T18:38:06.011591Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:38:06.011613Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:06.030378Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250530: 45204 bars, 149 LVNs, 1 signals
+[2m2025-12-30T18:38:06.039163Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 7512 trades through ProcessingState
+[2m2025-12-30T18:38:06.170667Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:38:06.170681Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:06.170967Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251109: 2117 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:38:06.870609Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 389926 trades through ProcessingState
+[2m2025-12-30T18:38:13.457527Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:38:13.457552Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 2 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:13.463812Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250603: 44921 bars, 47 LVNs, 3 signals
+[2m2025-12-30T18:38:13.935743Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 272040 trades through ProcessingState
+[2m2025-12-30T18:38:16.332748Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 5 signals
+[2m2025-12-30T18:38:16.332768Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:38:16.344677Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251118: 61921 bars, 346 LVNs, 5 signals
+[2m2025-12-30T18:38:17.406338Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 541112 trades through ProcessingState
+[2m2025-12-30T18:38:19.267289Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:38:19.267304Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:19.274960Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251028: 43981 bars, 12 LVNs, 6 signals
+[2m2025-12-30T18:38:19.896316Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 373274 trades through ProcessingState
+[2m2025-12-30T18:38:42.661792Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:38:42.661813Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:42.676280Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250602: 46985 bars, 81 LVNs, 3 signals
+[2m2025-12-30T18:38:43.290794Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 310824 trades through ProcessingState
+[2m2025-12-30T18:38:45.058918Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:38:45.058937Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:45.070016Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:38:45.070034Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:38:45.074388Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251107: 55095 bars, 252 LVNs, 2 signals
+[2m2025-12-30T18:38:45.079598Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250807: 49062 bars, 102 LVNs, 2 signals
+[2m2025-12-30T18:38:45.434921Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 274101 trades through ProcessingState
+[2m2025-12-30T18:38:46.196829Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 699637 trades through ProcessingState
+[2m2025-12-30T18:39:06.564057Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:39:06.564077Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:39:06.568624Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250604: 43894 bars, 56 LVNs, 4 signals
+[2m2025-12-30T18:39:07.287473Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 408151 trades through ProcessingState
+[2m2025-12-30T18:39:28.209013Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 4 signals
+[2m2025-12-30T18:39:28.209028Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 1 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:39:28.217826Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251110: 52465 bars, 39 LVNs, 4 signals
+[2m2025-12-30T18:39:29.123169Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 447698 trades through ProcessingState
+[2m2025-12-30T18:39:30.255592Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 9 signals
+[2m2025-12-30T18:39:30.255611Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 9 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:39:30.270340Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251114: 58846 bars, 277 LVNs, 9 signals
+[2m2025-12-30T18:39:30.839510Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 324297 trades through ProcessingState
+[2m2025-12-30T18:39:33.957610Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:39:33.957631Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:39:33.963830Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251029: 49865 bars, 110 LVNs, 8 signals
+[2m2025-12-30T18:39:34.364066Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 276068 trades through ProcessingState
+[2m2025-12-30T18:39:36.892319Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:39:36.892342Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:39:36.903336Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250808: 40765 bars, 10 LVNs, 3 signals
+[2m2025-12-30T18:39:36.914533Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 6985 trades through ProcessingState
+[2m2025-12-30T18:39:36.994365Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:39:36.994381Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:39:36.994621Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250810: 2532 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:39:37.397953Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 276053 trades through ProcessingState
+[2m2025-12-30T18:39:44.934235Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:39:44.934254Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:39:44.941010Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250812: 42479 bars, 71 LVNs, 2 signals
+[2m2025-12-30T18:39:45.429147Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 288350 trades through ProcessingState
+[2m2025-12-30T18:40:05.259443Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:40:05.259474Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:05.269017Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251119: 57256 bars, 317 LVNs, 2 signals
+[2m2025-12-30T18:40:05.272861Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5008 trades through ProcessingState
+[2m2025-12-30T18:40:05.320916Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 0 signals
+[2m2025-12-30T18:40:05.320932Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 0 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:05.321178Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250817: 2095 bars, 0 LVNs, 0 signals
+[2m2025-12-30T18:40:05.795924Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 253396 trades through ProcessingState
+[2m2025-12-30T18:40:23.239340Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:40:23.239356Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:40:23.257703Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250605: 47095 bars, 185 LVNs, 7 signals
+[2m2025-12-30T18:40:23.831181Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 309948 trades through ProcessingState
+[2m2025-12-30T18:40:26.224782Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 10 signals
+[2m2025-12-30T18:40:26.224806Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 10 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:26.234611Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250827: 42010 bars, 51 LVNs, 10 signals
+[2m2025-12-30T18:40:26.714275Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 303610 trades through ProcessingState
+[2m2025-12-30T18:40:27.651057Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:40:27.651077Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:27.655272Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250811: 43426 bars, 31 LVNs, 3 signals
+[2m2025-12-30T18:40:28.091260Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 253265 trades through ProcessingState
+[2m2025-12-30T18:40:39.688180Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 10 signals
+[2m2025-12-30T18:40:39.688214Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 10 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:39.693813Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250813: 41858 bars, 11 LVNs, 10 signals
+[2m2025-12-30T18:40:40.275779Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 318333 trades through ProcessingState
+[2m2025-12-30T18:40:41.943824Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 10 signals
+[2m2025-12-30T18:40:41.943882Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:40:41.950281Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250822: 41365 bars, 111 LVNs, 10 signals
+[2m2025-12-30T18:40:41.955708Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 6983 trades through ProcessingState
+[2m2025-12-30T18:40:42.031029Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:40:42.031046Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:42.031892Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250824: 2501 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:40:42.432057Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 289197 trades through ProcessingState
+[2m2025-12-30T18:40:52.217501Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:40:52.217519Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:52.221268Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250818: 42190 bars, 36 LVNs, 2 signals
+[2m2025-12-30T18:40:52.796281Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 356589 trades through ProcessingState
+[2m2025-12-30T18:40:56.238824Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:40:56.238847Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 7 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:40:56.262936Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251120: 57199 bars, 271 LVNs, 8 signals
+[2m2025-12-30T18:40:56.716304Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 274967 trades through ProcessingState
+[2m2025-12-30T18:41:01.722154Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 16 signals
+[2m2025-12-30T18:41:01.722190Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 14 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:41:01.739528Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20251030: 55649 bars, 258 LVNs, 16 signals
+[2m2025-12-30T18:41:02.459294Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 460251 trades through ProcessingState
+[2m2025-12-30T18:41:15.959192Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:41:15.959216Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:41:15.964992Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250825: 42197 bars, 22 LVNs, 1 signals
+[2m2025-12-30T18:41:16.527113Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 352549 trades through ProcessingState
+[2m2025-12-30T18:41:24.030845Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:41:24.030870Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:41:24.045589Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250828: 44230 bars, 58 LVNs, 2 signals
+[2m2025-12-30T18:41:24.606746Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 342720 trades through ProcessingState
+[2m2025-12-30T18:41:27.696134Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:41:27.696154Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:41:27.706649Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250606: 44945 bars, 33 LVNs, 1 signals
+[2m2025-12-30T18:41:27.713086Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 8173 trades through ProcessingState
+[2m2025-12-30T18:41:27.830976Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:41:27.831006Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:41:27.831625Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250608: 2917 bars, 0 LVNs, 3 signals
+[2m2025-12-30T18:41:28.198386Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 230535 trades through ProcessingState
+[2m2025-12-30T18:41:38.418562Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 13 signals
+[2m2025-12-30T18:41:38.418582Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 13 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:41:38.427176Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250826: 45311 bars, 15 LVNs, 13 signals
+[2m2025-12-30T18:41:38.979173Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 297241 trades through ProcessingState
+[2m2025-12-30T18:41:44.201015Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:41:44.201033Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 3 delta_flips, 2 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:41:44.211049Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250814: 41268 bars, 53 LVNs, 6 signals
+[2m2025-12-30T18:41:44.814755Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 345317 trades through ProcessingState
+[2m2025-12-30T18:41:47.885344Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 2 signals
+[2m2025-12-30T18:41:47.885371Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:41:47.890361Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250815: 39180 bars, 32 LVNs, 2 signals
+[2m2025-12-30T18:41:48.294897Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 258245 trades through ProcessingState
+[2m2025-12-30T18:42:01.731698Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:42:01.731725Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:42:01.737259Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250819: 44164 bars, 47 LVNs, 3 signals
+[2m2025-12-30T18:42:01.746530Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 5812 trades through ProcessingState
+[2m2025-12-30T18:42:01.842771Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:42:01.842799Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:01.845296Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250831: 2228 bars, 0 LVNs, 1 signals
+[2m2025-12-30T18:42:01.978449Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Starting replay of 63267 trades through ProcessingState
+[2m2025-12-30T18:42:07.418506Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 1 signals
+[2m2025-12-30T18:42:07.418521Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 1 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:07.419353Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250901: 23639 bars, 9 LVNs, 1 signals
+[2m2025-12-30T18:42:13.526286Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:42:13.526304Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:42:13.535554Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250609: 41754 bars, 9 LVNs, 7 signals
+[2m2025-12-30T18:42:22.661130Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 13 signals
+[2m2025-12-30T18:42:22.661147Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 12 delta_flips, 1 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:22.670412Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250821: 46755 bars, 80 LVNs, 13 signals
+[2m2025-12-30T18:42:24.942105Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 7 signals
+[2m2025-12-30T18:42:24.942122Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 5 delta_flips, 1 absorptions, 0 stacked_imbalances, 1 confluences
+[2m2025-12-30T18:42:24.951406Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250820: 49465 bars, 114 LVNs, 7 signals
+[2m2025-12-30T18:42:26.402557Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 3 signals
+[2m2025-12-30T18:42:26.402579Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 2 delta_flips, 0 absorptions, 1 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:26.408427Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250829: 42347 bars, 27 LVNs, 3 signals
+[2m2025-12-30T18:42:30.240464Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 8 signals
+[2m2025-12-30T18:42:30.240485Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 8 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:30.243649Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250612: 43292 bars, 59 LVNs, 8 signals
+[2m2025-12-30T18:42:31.010505Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 12 signals
+[2m2025-12-30T18:42:31.010517Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 12 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:31.013794Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250610: 47777 bars, 74 LVNs, 12 signals
+[2m2025-12-30T18:42:34.112397Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Replay complete. Captured 6 signals
+[2m2025-12-30T18:42:34.112408Z[0m [32m INFO[0m [2mpipeline::replay[0m[2m:[0m Signal breakdown: 6 delta_flips, 0 absorptions, 0 stacked_imbalances, 0 confluences
+[2m2025-12-30T18:42:34.116032Z[0m [32m INFO[0m [2mpipeline::precompute[0m[2m:[0m Processed 20250611: 45233 bars, 106 LVNs, 6 signals
+[2m2025-12-30T18:42:42.536130Z[0m [32m INFO[0m [2mpipeline[0m[2m:[0m Precompute complete: 276 succeeded, 0 failed in 1522.7s

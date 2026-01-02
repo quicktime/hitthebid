@@ -1,6 +1,6 @@
 use crate::impulse::{ImpulseDirection, ImpulseLeg};
 use crate::trades::Trade;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -165,6 +165,160 @@ pub fn extract_lvns_realtime(
     lvn_levels.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
 
     lvn_levels
+}
+
+/// Extract LVNs from a full day's volume profile using 1s bars
+///
+/// Unlike impulse-based LVNs, this extracts LVNs from the ENTIRE day's volume
+/// distribution. This approach is more stable because:
+/// 1. No reliance on real-time impulse detection (which proved unreliable)
+/// 2. LVNs represent actual low-volume gaps in the full session
+/// 3. Can be pre-computed overnight for next-day trading
+///
+/// Returns LVNs sorted by price.
+pub fn extract_lvns_from_full_profile(
+    bars: &[crate::bars::Bar],
+    min_session_hour_et: u32,  // e.g., 9 for 9:00 AM start
+    max_session_hour_et: u32,  // e.g., 16 for 4:00 PM end (exclusive)
+) -> Vec<LvnLevel> {
+    use chrono_tz::America::New_York;
+    use std::collections::HashMap;
+
+    if bars.is_empty() {
+        return Vec::new();
+    }
+
+    // Build volume profile from bars, distributing volume across each bar's range
+    let mut volume_at_price: HashMap<i64, u64> = HashMap::new();
+
+    let symbol = bars.first().map(|b| b.symbol.clone()).unwrap_or_default();
+    let date = bars.first().map(|b| b.timestamp.date_naive()).unwrap_or_else(|| {
+        chrono::Utc::now().date_naive()
+    });
+
+    for bar in bars {
+        // Filter by trading hours
+        let et_time = bar.timestamp.with_timezone(&New_York);
+        let hour = et_time.hour();
+        let minute = et_time.minute();
+
+        // Check if within session hours
+        let in_session = if min_session_hour_et == 9 && max_session_hour_et == 16 {
+            // RTH: 9:30-16:00
+            (hour > 9 || (hour == 9 && minute >= 30)) && hour < 16
+        } else {
+            hour >= min_session_hour_et && hour < max_session_hour_et
+        };
+
+        if !in_session {
+            continue;
+        }
+
+        // Distribute volume across the bar's price range
+        // Use OHLC to get key prices where volume actually occurred
+        let prices = [bar.open, bar.high, bar.low, bar.close];
+        let vol_per_level = bar.volume / 4;  // Distribute evenly across OHLC
+        let remainder = bar.volume % 4;
+
+        for (i, &price) in prices.iter().enumerate() {
+            let bucket = price_to_bucket(price);
+            let vol = if i == 0 { vol_per_level + remainder } else { vol_per_level };
+            *volume_at_price.entry(bucket).or_insert(0) += vol;
+        }
+    }
+
+    if volume_at_price.is_empty() {
+        return Vec::new();
+    }
+
+    // Calculate average volume across all price levels
+    let total_volume: u64 = volume_at_price.values().sum();
+    let avg_volume = total_volume as f64 / volume_at_price.len() as f64;
+
+    // Find LVNs: price levels with volume < threshold of average
+    // For full profile, use a slightly higher threshold since it's the whole day
+    let lvn_threshold = LVN_THRESHOLD_RATIO * 1.5; // 22.5% instead of 15%
+
+    let mut lvn_levels = Vec::new();
+
+    // We need to assign a direction to full-profile LVNs
+    // Use the day's overall direction (close vs open)
+    let first_price = bars.first().map(|b| b.open).unwrap_or(0.0);
+    let last_price = bars.last().map(|b| b.close).unwrap_or(first_price);
+    let day_direction = if last_price > first_price {
+        ImpulseDirection::Up
+    } else {
+        ImpulseDirection::Down
+    };
+
+    // For full profile LVNs, we'll use the overall session times
+    let first_bar = bars.iter().next();
+    let last_bar = bars.iter().last();
+    let start_time = first_bar.map(|b| b.timestamp).unwrap_or_else(chrono::Utc::now);
+    let end_time = last_bar.map(|b| b.timestamp).unwrap_or(start_time);
+
+    for (&bucket, &volume) in &volume_at_price {
+        let volume_ratio = volume as f64 / avg_volume;
+
+        if volume_ratio < lvn_threshold {
+            let price = bucket_to_price(bucket);
+
+            // Determine LVN direction based on where it is relative to session VWAP
+            // LVN above VWAP = resistance (came from down impulse) → SHORT on retest
+            // LVN below VWAP = support (came from up impulse) → LONG on retest
+            let vwap = calculate_simple_vwap(bars);
+            let lvn_direction = if price > vwap {
+                ImpulseDirection::Down  // LVN is resistance
+            } else {
+                ImpulseDirection::Up    // LVN is support
+            };
+
+            lvn_levels.push(LvnLevel {
+                impulse_id: Uuid::nil(), // No impulse for full-profile LVNs
+                price,
+                volume,
+                avg_volume,
+                volume_ratio,
+                impulse_start_time: start_time,
+                impulse_end_time: end_time,
+                impulse_direction: lvn_direction,
+                date,
+                symbol: symbol.clone(),
+            });
+        }
+    }
+
+    // Sort by price
+    lvn_levels.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+
+    lvn_levels
+}
+
+/// Calculate simple VWAP from bars
+fn calculate_simple_vwap(bars: &[crate::bars::Bar]) -> f64 {
+    if bars.is_empty() {
+        return 0.0;
+    }
+
+    let mut volume_sum: u64 = 0;
+    let mut pv_sum: f64 = 0.0;
+
+    for bar in bars {
+        let typical_price = (bar.high + bar.low + bar.close) / 3.0;
+        pv_sum += typical_price * bar.volume as f64;
+        volume_sum += bar.volume;
+    }
+
+    if volume_sum == 0 {
+        return bars.last().map(|b| b.close).unwrap_or(0.0);
+    }
+
+    pv_sum / volume_sum as f64
+}
+
+/// Extract LVNs from RTH session (9:30-16:00 ET)
+pub fn extract_lvns_from_rth_profile(bars: &[crate::bars::Bar]) -> Vec<LvnLevel> {
+    extract_lvns_from_full_profile(bars, 9, 16)
 }
 
 #[cfg(test)]

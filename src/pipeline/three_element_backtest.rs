@@ -622,15 +622,27 @@ impl ThreeElementBacktester {
                         }
                     }
                     // Resistance levels - look for bearish aggression to go short
-                    LevelType::VAH | LevelType::PDH | LevelType::ONH => {
+                    LevelType::VAH | LevelType::PDH | LevelType::ONH
+                    | LevelType::WeeklyHigh | LevelType::MonthlyHigh => {
                         if event.direction == TradeDirection::Short {
                             Some(TradeDirection::Short)
                         } else {
                             None
                         }
                     }
-                    // Neutral levels (POC, LVN) - follow aggression direction
-                    LevelType::POC | LevelType::LVN => Some(event.direction),
+                    // Support levels from new level types
+                    LevelType::WeeklyLow | LevelType::MonthlyLow => {
+                        if event.direction == TradeDirection::Long {
+                            Some(TradeDirection::Long)
+                        } else {
+                            None
+                        }
+                    }
+                    // Neutral levels (POC, LVN, Fibs, VWAP, Opens) - follow aggression direction
+                    LevelType::POC | LevelType::LVN
+                    | LevelType::Fib236 | LevelType::Fib382 | LevelType::Fib500
+                    | LevelType::Fib618 | LevelType::Fib786
+                    | LevelType::VWAP | LevelType::WeeklyOpen | LevelType::MonthlyOpen => Some(event.direction),
                 }
             }
             MarketState::Imbalanced => {

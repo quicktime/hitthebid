@@ -85,6 +85,10 @@ struct Args {
     /// Cache directory for daily levels (used with --trading)
     #[arg(long, default_value = "cache_2025")]
     cache_dir: std::path::PathBuf,
+
+    /// Number of contracts to trade (use with --trading)
+    #[arg(long, default_value = "1")]
+    contracts: u32,
 }
 
 #[tokio::main]
@@ -308,6 +312,7 @@ async fn main() -> Result<()> {
             .expect("API key required for live mode (use --demo or --local-replay)");
         let trading_enabled = args.trading;
         let cache_dir = args.cache_dir.clone();
+        let contracts = args.contracts;
         info!("📡 Starting LIVE mode with Databento");
         tokio::spawn(async move {
             if let Err(e) = run_databento_stream(
@@ -316,6 +321,7 @@ async fn main() -> Result<()> {
                 state_clone,
                 trading_enabled,
                 cache_dir,
+                contracts,
             ).await {
                 error!("Databento stream error: {}", e);
             }
