@@ -8,6 +8,7 @@ pub mod streams;
 pub mod execution;
 pub mod trading;
 pub mod trading_core;
+pub mod topstepx;
 
 // Re-export commonly used types
 pub use types::*;

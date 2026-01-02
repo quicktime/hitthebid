@@ -1,6 +1,7 @@
 mod bars;
 mod backtest;
 mod databento_ib_live;
+mod fetch_date;
 mod ib_execution;
 mod impulse;
 mod levels;
@@ -12,15 +13,18 @@ mod monte_carlo;
 mod precompute;
 mod replay;
 mod replay_trading;
+mod smart_lvn;
 mod state_machine;
 mod supabase;
+mod sweep;
 mod three_element_backtest;
 mod trades;
 
 use anyhow::{Context, Result};
+use chrono::Datelike;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Parser, Debug)]
@@ -391,12 +395,24 @@ enum Commands {
         max_daily_losses: i32,
 
         /// Slippage per trade in points (applied to both entry and exit)
-        #[arg(long, default_value = "0.0")]
+        #[arg(long, default_value = "0.5")]
         slippage: f64,
 
         /// Commission per round-trip in dollars
-        #[arg(long, default_value = "0.0")]
+        #[arg(long, default_value = "4.0")]
         commission: f64,
+
+        /// Maximum win cap in points (0 = disabled)
+        #[arg(long, default_value = "30.0")]
+        max_win_cap: f64,
+
+        /// Volatility slippage factor (extra_slippage = bar_range * factor)
+        #[arg(long, default_value = "0.1")]
+        volatility_slippage_factor: f64,
+
+        /// Outlier threshold for statistics (trades above excluded, 0 = disabled)
+        #[arg(long, default_value = "50.0")]
+        outlier_threshold: f64,
     },
 
     /// Replay test with real-time state machine (no look-ahead bias)
@@ -465,8 +481,8 @@ enum Commands {
         #[arg(long, default_value = "15.0")]
         min_impulse_size: f64,
 
-        /// Maximum impulse bars (1s bars, default 600 = 10 min)
-        #[arg(long, default_value = "600")]
+        /// Maximum impulse bars (1s bars, default 200 = 3.3 min)
+        #[arg(long, default_value = "200")]
         max_impulse_bars: usize,
 
         /// Maximum hunting bars (1s bars, default 1800 = 30 min)
@@ -480,6 +496,294 @@ enum Commands {
         /// Minimum impulse score (out of 5) to qualify (lowered for 1s bars)
         #[arg(long, default_value = "3")]
         min_impulse_score: u8,
+
+        /// Maximum win cap (points) to exclude outliers
+        #[arg(long, default_value = "20.0")]
+        max_win_cap: f64,
+
+        /// Volatility slippage factor
+        #[arg(long, default_value = "0.1")]
+        volatility_slippage_factor: f64,
+
+        /// Outlier threshold (points)
+        #[arg(long, default_value = "50.0")]
+        outlier_threshold: f64,
+    },
+
+    /// Replay test with PRIOR DAY FULL PROFILE LVNs (no real-time impulse detection)
+    ReplayProfile {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Take profit in points (set very high to use trailing stop only)
+        #[arg(long, default_value = "500")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "4")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "16")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for absorption signal
+        #[arg(long, default_value = "5")]
+        min_delta: i64,
+
+        /// Maximum LVN volume ratio (lower = thinner = higher quality)
+        #[arg(long, default_value = "0.4")]
+        max_lvn_ratio: f64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "3.0")]
+        level_tolerance: f64,
+
+        /// Starting balance
+        #[arg(long, default_value = "30000")]
+        starting_balance: f64,
+
+        /// Maximum win cap (points) to exclude outliers
+        #[arg(long, default_value = "20.0")]
+        max_win_cap: f64,
+
+        /// Volatility slippage factor
+        #[arg(long, default_value = "0.1")]
+        volatility_slippage_factor: f64,
+
+        /// Outlier threshold (points)
+        #[arg(long, default_value = "50.0")]
+        outlier_threshold: f64,
+    },
+
+    /// Smart LVN backtest (discretionary trader's process)
+    SmartLvn {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Maximum trades per day
+        #[arg(long, default_value = "5")]
+        max_trades_per_day: usize,
+
+        /// Minimum delta confirmation at level
+        #[arg(long, default_value = "30")]
+        min_delta: i64,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "25")]
+        min_impulse_size: f64,
+
+        /// Maximum impulse bars (1s)
+        #[arg(long, default_value = "120")]
+        max_impulse_bars: usize,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "2.0")]
+        level_tolerance: f64,
+
+        /// Trailing stop in points
+        #[arg(long, default_value = "4.0")]
+        trailing_stop: f64,
+
+        /// Take profit in points (0 = trailing only)
+        #[arg(long, default_value = "20.0")]
+        take_profit: f64,
+
+        /// Stop buffer beyond LVN
+        #[arg(long, default_value = "2.0")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading end hour (ET)
+        #[arg(long, default_value = "15")]
+        end_hour: u32,
+    },
+
+    /// Real LVN backtest - uses actual volume profile LVNs (not Fibonacci)
+    RealLvn {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Minimum delta confirmation at level
+        #[arg(long, default_value = "50")]
+        min_delta: i64,
+
+        /// Level tolerance in points
+        #[arg(long, default_value = "2.0")]
+        level_tolerance: f64,
+
+        /// Trailing stop in points
+        #[arg(long, default_value = "6.0")]
+        trailing_stop: f64,
+
+        /// Take profit in points (0 = trailing only)
+        #[arg(long, default_value = "0")]
+        take_profit: f64,
+
+        /// Stop buffer beyond LVN
+        #[arg(long, default_value = "2.0")]
+        stop_buffer: f64,
+
+        /// Maximum trades per day
+        #[arg(long, default_value = "5")]
+        max_trades_per_day: usize,
+
+        /// Trading start hour (ET)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading end hour (ET)
+        #[arg(long, default_value = "15")]
+        end_hour: u32,
+    },
+
+    /// Smart LVN Exit Strategy Sweep - find optimal trailing stop / take profit
+    SmartLvnExitSweep {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Fixed: Minimum delta confirmation at level
+        #[arg(long, default_value = "150")]
+        min_delta: i64,
+
+        /// Fixed: Minimum impulse size in points
+        #[arg(long, default_value = "35")]
+        min_impulse_size: f64,
+
+        /// Trailing stop values to sweep (comma-separated)
+        #[arg(long, default_value = "4,6,8,10,12,15")]
+        trailing_stops: String,
+
+        /// Take profit values to sweep (comma-separated, 0 = trailing only)
+        #[arg(long, default_value = "0,15,20,25,30,40")]
+        take_profits: String,
+    },
+
+    /// Multi-dimensional parameter sweep (delta × trailing × impulse × time)
+    MultiSweep {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Process only a specific date (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: Option<String>,
+
+        /// Start date for filtering (YYYYMMDD format, inclusive)
+        #[arg(long)]
+        start_date: Option<String>,
+
+        /// End date for filtering (YYYYMMDD format, inclusive)
+        #[arg(long)]
+        end_date: Option<String>,
+
+        /// Delta values to sweep (comma-separated)
+        #[arg(long, default_value = "100,150,200,250,300")]
+        deltas: String,
+
+        /// Trailing stop values to sweep (comma-separated)
+        #[arg(long, default_value = "1.5,2,2.5,3,4")]
+        trailing_stops: String,
+
+        /// Impulse size values to sweep (comma-separated)
+        #[arg(long, default_value = "25,35,50,75")]
+        impulse_sizes: String,
+
+        /// Time windows to test (all,morning,midday,afternoon,open_hour)
+        #[arg(long, default_value = "all,morning,midday,afternoon,open_hour")]
+        time_windows: String,
+
+        /// Top N results to display
+        #[arg(long, default_value = "30")]
+        top_n: usize,
+    },
+
+    /// Analyze delta distribution to calibrate optimal threshold
+    AnalyzeDelta {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "35")]
+        min_impulse_size: f64,
+    },
+
+    /// Fetch and precompute data for a specific date from Databento
+    FetchDate {
+        /// Date to fetch (YYYYMMDD format)
+        #[arg(short = 'D', long)]
+        date: String,
+
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Symbol to fetch (e.g., NQH6 for March 2026)
+        #[arg(short, long, default_value = "NQH6")]
+        symbol: String,
+    },
+
+    /// Batch fetch and precompute data for a date range from Databento
+    BatchFetch {
+        /// Start date (YYYYMMDD format)
+        #[arg(long)]
+        start: String,
+
+        /// End date (YYYYMMDD format)
+        #[arg(long)]
+        end: String,
+
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_es_2025")]
+        cache_dir: PathBuf,
+
+        /// Base symbol (ES or NQ) - will auto-roll contracts
+        #[arg(short, long, default_value = "ES")]
+        symbol: String,
     },
 
     /// Test Interactive Brokers connection
@@ -675,7 +979,7 @@ enum Commands {
         min_impulse_score: u8,
 
         /// Maximum bars for impulse profiling
-        #[arg(long, default_value = "600")]
+        #[arg(long, default_value = "200")]
         max_impulse_bars: usize,
 
         /// Maximum bars to hunt for retest
@@ -683,6 +987,94 @@ enum Commands {
         max_hunting_bars: usize,
 
         /// Maximum retrace ratio before invalidation
+        #[arg(long, default_value = "0.7")]
+        max_retrace_ratio: f64,
+    },
+
+    /// Live trading with Databento data + TopstepX execution (prop firm trading)
+    TopstepLive {
+        /// Contract symbol (e.g., NQH6 for March 2026)
+        #[arg(long, default_value = "NQH6")]
+        contract_symbol: String,
+
+        /// Output file for trade log (CSV format)
+        #[arg(long, default_value = "trades.csv")]
+        trade_log: PathBuf,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points
+        #[arg(long, default_value = "500")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "4")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "1.5")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "16")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for signal
+        #[arg(long, default_value = "150")]
+        min_delta: i64,
+
+        /// Starting balance for tracking
+        #[arg(long, default_value = "50000")]
+        starting_balance: f64,
+
+        /// Max losing trades per day
+        #[arg(long, default_value = "3")]
+        max_daily_losses: i32,
+
+        /// Daily loss limit in points
+        #[arg(long, default_value = "100")]
+        daily_loss_limit: f64,
+
+        // State Machine Parameters
+        /// Breakout threshold in points
+        #[arg(long, default_value = "2.0")]
+        breakout_threshold: f64,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "25")]
+        min_impulse_size: f64,
+
+        /// Minimum impulse score
+        #[arg(long, default_value = "3")]
+        min_impulse_score: u8,
+
+        /// Maximum bars for impulse profiling
+        #[arg(long, default_value = "200")]
+        max_impulse_bars: usize,
+
+        /// Maximum bars to hunt for retest
+        #[arg(long, default_value = "1800")]
+        max_hunting_bars: usize,
+
+        /// Maximum retrace ratio
         #[arg(long, default_value = "0.7")]
         max_retrace_ratio: f64,
     },
@@ -697,6 +1089,94 @@ enum Commands {
         #[arg(long, default_value = "60")]
         duration: u64,
     },
+
+    /// Parameter sweep - test many configurations in parallel
+    Sweep {
+        /// Cache directory for precomputed data
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Output CSV file for results
+        #[arg(short, long, default_value = "sweep_results.csv")]
+        output: PathBuf,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "16")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta values (comma-separated)
+        #[arg(long, default_value = "15,20,25,30,35,40")]
+        min_delta: String,
+
+        /// Trailing stop values (comma-separated)
+        #[arg(long, default_value = "5,6,7,8")]
+        trailing_stop: String,
+
+        /// Take profit values (comma-separated)
+        #[arg(long, default_value = "25,30,35")]
+        take_profit: String,
+
+        /// Stop buffer values (comma-separated)
+        #[arg(long, default_value = "2,3")]
+        stop_buffer: String,
+
+        /// Max hunting bars values (comma-separated)
+        #[arg(long, default_value = "600,900")]
+        max_hunting_bars: String,
+
+        /// Min impulse score values (comma-separated)
+        #[arg(long, default_value = "4")]
+        min_impulse_score: String,
+    },
+}
+
+/// Get the front-month contract symbol for a given date
+/// Futures roll on the 3rd Friday of the expiration month, but we use a simplified rule:
+/// - Use the next quarterly contract (H=Mar, M=Jun, U=Sep, Z=Dec)
+/// - Roll 2 weeks before expiration
+fn get_front_month_contract(base_symbol: &str, date: chrono::NaiveDate) -> String {
+    let year = date.year();
+    let month = date.month();
+
+    // Determine the front month contract
+    // Quarters: Mar(H), Jun(M), Sep(U), Dec(Z)
+    // Roll ~2 weeks before expiration (mid-month before quarter end)
+    let (contract_month, contract_year) = match month {
+        1 | 2 => ('H', year),           // Jan-Feb -> March
+        3 => {
+            if date.day() < 10 { ('H', year) } else { ('M', year) }  // Early Mar -> H, Late Mar -> M
+        }
+        4 | 5 => ('M', year),           // Apr-May -> June
+        6 => {
+            if date.day() < 10 { ('M', year) } else { ('U', year) }
+        }
+        7 | 8 => ('U', year),           // Jul-Aug -> September
+        9 => {
+            if date.day() < 10 { ('U', year) } else { ('Z', year) }
+        }
+        10 | 11 => ('Z', year),         // Oct-Nov -> December
+        12 => {
+            if date.day() < 10 { ('Z', year) } else { ('H', year + 1) }
+        }
+        _ => ('H', year),
+    };
+
+    // Year code is last digit (e.g., 2025 -> 5, 2026 -> 6)
+    let year_code = contract_year % 10;
+
+    format!("{}{}{}", base_symbol, contract_month, year_code)
 }
 
 #[tokio::main]
@@ -707,8 +1187,12 @@ async fn main() -> Result<()> {
 
     // Set up logging with filter to reduce noise from hitthebid processing
     // The processing module logs every bubble creation at INFO level which is too verbose
+    let is_sweep = matches!(args.command, Commands::Sweep { .. });
     let filter = if args.verbose {
         EnvFilter::new("debug")
+    } else if is_sweep {
+        // Suppress INFO logging during sweep for performance
+        EnvFilter::new("pipeline=warn,hitthebid=warn")
     } else {
         // Only show warnings from hitthebid, INFO from pipeline
         EnvFilter::new("pipeline=info,hitthebid=warn")
@@ -801,6 +1285,7 @@ async fn main() -> Result<()> {
             min_delta, max_lvn_ratio, level_tolerance,
             starting_balance, max_daily_losses,
             slippage, commission,
+            max_win_cap, volatility_slippage_factor, outlier_threshold,
         } => {
             // Use same LiveConfig as live trading - validates exact same code path
             let config = trader::LiveConfig {
@@ -824,6 +1309,9 @@ async fn main() -> Result<()> {
                 point_value: 20.0,
                 slippage,
                 commission,
+                max_win_cap,
+                volatility_slippage_factor,
+                outlier_threshold,
             };
 
             replay_trading::run_replay(cache_dir, date, config).await?;
@@ -837,6 +1325,7 @@ async fn main() -> Result<()> {
             breakout_threshold, min_impulse_size,
             max_impulse_bars, max_hunting_bars, max_retrace_ratio,
             min_impulse_score,
+            max_win_cap, volatility_slippage_factor, outlier_threshold,
         } => {
             let config = trader::LiveConfig {
                 symbol: "NQ".to_string(),
@@ -857,8 +1346,11 @@ async fn main() -> Result<()> {
                 max_daily_losses: 0, // Not used in realtime mode
                 daily_loss_limit: 1000.0,
                 point_value: 20.0,
-                slippage: 0.0,
-                commission: 0.0,
+                slippage: 0.5, // Default realistic slippage
+                commission: 4.0, // Default commission
+                max_win_cap,
+                volatility_slippage_factor,
+                outlier_threshold,
             };
 
             let sm_config = state_machine::StateMachineConfig {
@@ -868,9 +1360,357 @@ async fn main() -> Result<()> {
                 max_hunting_bars,
                 min_impulse_score,
                 max_retrace_ratio,
+                min_bars_before_switch: 60, // 1 minute before switching to new breakout
             };
 
             replay_trading::run_replay_realtime(cache_dir, date, config, sm_config).await?;
+        }
+        Commands::ReplayProfile {
+            cache_dir, date,
+            contracts, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, max_lvn_ratio, level_tolerance,
+            starting_balance,
+            max_win_cap, volatility_slippage_factor, outlier_threshold,
+        } => {
+            let config = trader::LiveConfig {
+                symbol: "NQ".to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir: cache_dir.clone(),
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio,
+                level_tolerance,
+                starting_balance,
+                max_daily_losses: 0,
+                daily_loss_limit: 1000.0,
+                point_value: 20.0,
+                slippage: 0.5,
+                commission: 4.0,
+                max_win_cap,
+                volatility_slippage_factor,
+                outlier_threshold,
+            };
+
+            replay_trading::run_replay_prior_day_profile(cache_dir, date, config).await?;
+        }
+        Commands::SmartLvn {
+            cache_dir, date,
+            max_trades_per_day, min_delta, min_impulse_size,
+            max_impulse_bars, level_tolerance,
+            trailing_stop, take_profit, stop_buffer,
+            start_hour, end_hour,
+        } => {
+            info!("=== SMART LVN BACKTEST ===");
+            info!("Implementing discretionary trader's process:");
+            info!("  - Valid impulse = Balanced → Imbalanced transition");
+            info!("  - First touch only (trapped traders)");
+            info!("  - Delta confirmation at level (min {})", min_delta);
+            info!("  - Max {} trades/day", max_trades_per_day);
+
+            // Load cached data
+            let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+            if days.is_empty() {
+                anyhow::bail!("No cached data found. Run 'precompute' first.");
+            }
+
+            info!("Loaded {} days of data", days.len());
+
+            let config = smart_lvn::SmartLvnConfig {
+                max_trades_per_day,
+                min_delta_confirmation: min_delta,
+                min_impulse_size,
+                max_impulse_bars,
+                level_tolerance,
+                trailing_stop,
+                take_profit,
+                stop_buffer,
+                start_hour,
+                end_hour,
+            };
+
+            let backtest = smart_lvn::SmartLvnBacktest::new(config);
+            let result = backtest.run(&days);
+
+            println!("{}", result);
+        }
+        Commands::RealLvn {
+            cache_dir, date,
+            min_delta, level_tolerance,
+            trailing_stop, take_profit, stop_buffer,
+            max_trades_per_day, start_hour, end_hour,
+        } => {
+            info!("=== REAL LVN BACKTEST ===");
+            info!("Using actual volume profile LVNs (not Fibonacci proxy)");
+            info!("  - Delta confirmation: {}", min_delta);
+            info!("  - Max {} trades/day", max_trades_per_day);
+            info!("  - Trailing stop: {} pts, TP: {} pts", trailing_stop, take_profit);
+
+            let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+            if days.is_empty() {
+                anyhow::bail!("No cached data found. Run 'precompute' first.");
+            }
+
+            let total_lvns: usize = days.iter().map(|d| d.lvn_levels.len()).sum();
+            info!("Loaded {} days, {} real LVNs", days.len(), total_lvns);
+
+            let config = smart_lvn::SmartLvnConfig {
+                max_trades_per_day,
+                min_delta_confirmation: min_delta,
+                min_impulse_size: 0.0, // Not used for real LVN
+                max_impulse_bars: 0,   // Not used for real LVN
+                level_tolerance,
+                trailing_stop,
+                take_profit,
+                stop_buffer,
+                start_hour,
+                end_hour,
+            };
+
+            let backtest = smart_lvn::RealLvnBacktest::new(config);
+            let result = backtest.run(&days);
+
+            println!("{}", result);
+        }
+        Commands::SmartLvnExitSweep {
+            cache_dir, date,
+            min_delta, min_impulse_size,
+            trailing_stops, take_profits,
+        } => {
+            info!("=== SMART LVN EXIT STRATEGY SWEEP ===");
+            info!("Fixed entry: delta={}, impulse_size={}", min_delta, min_impulse_size);
+
+            // Parse sweep values
+            let trailing_stop_values: Vec<f64> = trailing_stops
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let take_profit_values: Vec<f64> = take_profits
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+
+            info!("Trailing stops to test: {:?}", trailing_stop_values);
+            info!("Take profits to test: {:?}", take_profit_values);
+            info!("Total combinations: {}", trailing_stop_values.len() * take_profit_values.len());
+
+            // Load cached data
+            let days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+            if days.is_empty() {
+                anyhow::bail!("No cached data found. Run 'precompute' first.");
+            }
+
+            info!("Loaded {} days of data", days.len());
+
+            // Run the sweep
+            let results = smart_lvn::run_exit_sweep(
+                &days,
+                min_delta,
+                min_impulse_size,
+                &trailing_stop_values,
+                &take_profit_values,
+            );
+
+            // Print results
+            smart_lvn::print_exit_sweep_results(&results, min_delta, min_impulse_size);
+        }
+        Commands::MultiSweep {
+            cache_dir, date, start_date, end_date,
+            deltas, trailing_stops, impulse_sizes, time_windows,
+            top_n,
+        } => {
+            info!("=== MULTI-DIMENSIONAL PARAMETER SWEEP ===");
+            info!("Testing all combinations of delta × trailing × impulse × time");
+
+            // Parse sweep values
+            let delta_values: Vec<i64> = deltas
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let trailing_stop_values: Vec<f64> = trailing_stops
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let impulse_size_values: Vec<f64> = impulse_sizes
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+
+            // Parse time windows
+            let time_window_values: Vec<smart_lvn::TimeWindow> = time_windows
+                .split(',')
+                .filter_map(|s| match s.trim() {
+                    "all" => Some(smart_lvn::TimeWindow::ALL_DAY),
+                    "morning" => Some(smart_lvn::TimeWindow::MORNING),
+                    "midday" => Some(smart_lvn::TimeWindow::MIDDAY),
+                    "afternoon" => Some(smart_lvn::TimeWindow::AFTERNOON),
+                    "open_hour" => Some(smart_lvn::TimeWindow::OPEN_HOUR),
+                    _ => None,
+                })
+                .collect();
+
+            let total = delta_values.len() * trailing_stop_values.len() *
+                       impulse_size_values.len() * time_window_values.len();
+            info!("Deltas: {:?}", delta_values);
+            info!("Trailing stops: {:?}", trailing_stop_values);
+            info!("Impulse sizes: {:?}", impulse_size_values);
+            info!("Time windows: {:?}", time_windows);
+            info!("Total combinations: {}", total);
+
+            // Load cached data
+            let mut days = precompute::load_all_cached(&cache_dir, date.as_deref())?;
+
+            // Filter by date range if specified
+            if let Some(ref start) = start_date {
+                days.retain(|d| d.date.as_str() >= start.as_str());
+                info!("Filtering from {}", start);
+            }
+            if let Some(ref end) = end_date {
+                days.retain(|d| d.date.as_str() <= end.as_str());
+                info!("Filtering to {}", end);
+            }
+
+            if days.is_empty() {
+                anyhow::bail!("No cached data found for date range. Run 'precompute' first.");
+            }
+
+            info!("Loaded {} days of data", days.len());
+
+            // Run the sweep
+            let results = smart_lvn::run_multi_sweep(
+                &days,
+                &delta_values,
+                &trailing_stop_values,
+                &impulse_size_values,
+                &time_window_values,
+            );
+
+            // Print results
+            smart_lvn::print_multi_sweep_results(&results, top_n);
+        }
+        Commands::AnalyzeDelta { cache_dir, min_impulse_size } => {
+            info!("=== DELTA DISTRIBUTION ANALYSIS ===");
+            info!("Finding optimal delta threshold for impulse_size={}", min_impulse_size);
+
+            let days = precompute::load_all_cached(&cache_dir, None)?;
+
+            if days.is_empty() {
+                anyhow::bail!("No cached data found. Run 'precompute' first.");
+            }
+
+            info!("Loaded {} days of data", days.len());
+
+            smart_lvn::analyze_delta_distribution(&days, min_impulse_size);
+        }
+        Commands::FetchDate { date, cache_dir, symbol } => {
+            info!("=== FETCH DATE FROM DATABENTO ===");
+            info!("Date: {}, Symbol: {}", date, symbol);
+
+            // Parse date
+            let year: i32 = date[0..4].parse()?;
+            let month: u32 = date[4..6].parse()?;
+            let day: u32 = date[6..8].parse()?;
+
+            let naive_date = chrono::NaiveDate::from_ymd_opt(year, month, day)
+                .ok_or_else(|| anyhow::anyhow!("Invalid date: {}", date))?;
+
+            info!("Fetching trades for {}", naive_date);
+
+            // Fetch from Databento (already in async context)
+            let day_data = fetch_date::fetch_and_precompute(
+                &std::env::var("DATABENTO_API_KEY")?,
+                &symbol,
+                naive_date,
+            ).await?;
+
+            info!("Fetched {} bars, {} LVNs", day_data.bars_1s.len(), day_data.lvn_levels.len());
+
+            // Save to cache
+            std::fs::create_dir_all(&cache_dir)?;
+            let cache_path = cache_dir.join(format!("{}.json.zst", date));
+
+            let file = std::fs::File::create(&cache_path)?;
+            let encoder = zstd::stream::Encoder::new(file, 3)?;
+            let writer = std::io::BufWriter::new(encoder.auto_finish());
+            serde_json::to_writer(writer, &day_data)?;
+
+            info!("Saved to {}", cache_path.display());
+        }
+        Commands::BatchFetch { start, end, cache_dir, symbol } => {
+            info!("=== BATCH FETCH FROM DATABENTO ===");
+            info!("Base symbol: {}, Date range: {} to {}", symbol, start, end);
+
+            // Parse dates
+            let start_date = chrono::NaiveDate::parse_from_str(&start, "%Y%m%d")
+                .context("Invalid start date")?;
+            let end_date = chrono::NaiveDate::parse_from_str(&end, "%Y%m%d")
+                .context("Invalid end date")?;
+
+            std::fs::create_dir_all(&cache_dir)?;
+
+            let api_key = std::env::var("DATABENTO_API_KEY")?;
+            let mut current = start_date;
+            let mut fetched = 0;
+            let mut skipped = 0;
+
+            while current <= end_date {
+                // Skip weekends
+                if current.weekday() == chrono::Weekday::Sat || current.weekday() == chrono::Weekday::Sun {
+                    current = current + chrono::Duration::days(1);
+                    continue;
+                }
+
+                let date_str = current.format("%Y%m%d").to_string();
+                let cache_path = cache_dir.join(format!("{}.json.zst", date_str));
+
+                // Skip if already cached
+                if cache_path.exists() {
+                    info!("Skipping {} (already cached)", date_str);
+                    skipped += 1;
+                    current = current + chrono::Duration::days(1);
+                    continue;
+                }
+
+                // Get the correct contract symbol for this date
+                let contract_symbol = get_front_month_contract(&symbol, current);
+                info!("Fetching {} ({})...", date_str, contract_symbol);
+
+                match fetch_date::fetch_and_precompute(&api_key, &contract_symbol, current).await {
+                    Ok(day_data) => {
+                        if day_data.bars_1s.is_empty() {
+                            warn!("  → No data for {} (holiday?)", date_str);
+                        } else {
+                            let file = std::fs::File::create(&cache_path)?;
+                            let encoder = zstd::stream::Encoder::new(file, 3)?;
+                            let writer = std::io::BufWriter::new(encoder.auto_finish());
+                            serde_json::to_writer(writer, &day_data)?;
+                            info!("  → {} bars, {} LVNs", day_data.bars_1s.len(), day_data.lvn_levels.len());
+                            fetched += 1;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to fetch {}: {}", date_str, e);
+                    }
+                }
+
+                current = current + chrono::Duration::days(1);
+
+                // Rate limit: don't hammer Databento
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            }
+
+            info!("=== BATCH COMPLETE ===");
+            info!("Fetched: {}, Skipped: {}", fetched, skipped);
         }
         Commands::IbTest => {
             ib_execution::run_ib_demo()?;
@@ -916,8 +1756,11 @@ async fn main() -> Result<()> {
                 max_daily_losses,
                 daily_loss_limit,
                 point_value: 20.0,
-                slippage: 0.0,
-                commission: 0.0,
+                slippage: 0.0, // Live trading - actual slippage from fills
+                commission: 0.0, // Live trading - actual commission from broker
+                max_win_cap: 0.0, // Disabled for live
+                volatility_slippage_factor: 0.0, // Disabled for live
+                outlier_threshold: 0.0, // Disabled for live
             };
 
             let ib_config = ib_execution::IbConfig {
@@ -983,6 +1826,10 @@ async fn main() -> Result<()> {
                 point_value: 20.0,
                 slippage: 0.0,
                 commission: 0.0,
+                // Live trading: no artificial caps/adjustments
+                max_win_cap: 0.0,
+                volatility_slippage_factor: 0.0,
+                outlier_threshold: 0.0,
             };
 
             let sm_config = state_machine::StateMachineConfig {
@@ -992,6 +1839,7 @@ async fn main() -> Result<()> {
                 max_impulse_bars,
                 max_hunting_bars,
                 max_retrace_ratio,
+                min_bars_before_switch: 60, // 1 minute before switching to new breakout
             };
 
             if observe_mode {
@@ -1018,6 +1866,85 @@ async fn main() -> Result<()> {
                     paper_mode
                 ).await?;
             }
+        }
+        Commands::TopstepLive {
+            contract_symbol, trade_log, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, starting_balance, max_daily_losses, daily_loss_limit,
+            breakout_threshold, min_impulse_size, min_impulse_score,
+            max_impulse_bars, max_hunting_bars, max_retrace_ratio,
+        } => {
+            use hitthebid::topstepx::{TopstepClient, TopstepExecutor};
+
+            println!("═══════════════════════════════════════════════════════════");
+            println!("           TOPSTEP LIVE TRADING                            ");
+            println!("═══════════════════════════════════════════════════════════");
+            println!();
+            println!("Symbol: {}", contract_symbol);
+            println!("Contracts: {}", contracts);
+            println!("Trading Hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
+            println!();
+
+            let databento_key = std::env::var("DATABENTO_API_KEY")
+                .context("DATABENTO_API_KEY not set")?;
+
+            // Create TopstepX client and executor
+            info!("Connecting to TopstepX API...");
+            let client = TopstepClient::from_env()
+                .context("Failed to create TopstepX client. Check TOPSTEP_USERNAME and TOPSTEP_API_KEY")?;
+
+            // Extract base symbol (e.g., NQ from NQH6)
+            let base_symbol = &contract_symbol[..2];
+            let mut executor = TopstepExecutor::new(client, base_symbol).await
+                .context("Failed to initialize TopstepX executor")?;
+
+            info!("TopstepX executor ready");
+
+            let config = trader::LiveConfig {
+                symbol: base_symbol.to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio: 0.4,
+                level_tolerance: 3.0,
+                starting_balance,
+                max_daily_losses,
+                daily_loss_limit,
+                point_value: 20.0,
+                slippage: 0.0,
+                commission: 0.0,
+                max_win_cap: 0.0,
+                volatility_slippage_factor: 0.0,
+                outlier_threshold: 0.0,
+            };
+
+            let sm_config = state_machine::StateMachineConfig {
+                breakout_threshold,
+                min_impulse_size,
+                min_impulse_score,
+                max_impulse_bars,
+                max_hunting_bars,
+                max_retrace_ratio,
+                min_bars_before_switch: 60,
+            };
+
+            // Run in observe mode with TopstepX execution
+            databento_ib_live::run_topstep_mode(
+                databento_key,
+                contract_symbol,
+                config,
+                sm_config,
+                executor,
+                trade_log,
+            ).await?;
         }
         Commands::DatabentoTest { symbol, duration } => {
             use databento::{
@@ -1102,6 +2029,89 @@ async fn main() -> Result<()> {
             println!("Total trades: {}", trade_count);
             println!("Total volume: {} contracts", total_volume);
             println!("═══════════════════════════════════════════════════════════");
+        }
+        Commands::Sweep {
+            cache_dir,
+            output,
+            start_hour,
+            start_minute,
+            end_hour,
+            end_minute,
+            min_delta,
+            trailing_stop,
+            take_profit,
+            stop_buffer,
+            max_hunting_bars,
+            min_impulse_score,
+        } => {
+            // Parse comma-separated values
+            let min_delta_values: Vec<i64> = min_delta
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let trailing_stop_values: Vec<f64> = trailing_stop
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let take_profit_values: Vec<f64> = take_profit
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let stop_buffer_values: Vec<f64> = stop_buffer
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let max_hunting_bars_values: Vec<usize> = max_hunting_bars
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+            let min_impulse_score_values: Vec<u8> = min_impulse_score
+                .split(',')
+                .filter_map(|s| s.trim().parse().ok())
+                .collect();
+
+            // Fixed parameters
+            let max_lvn_ratio_values = vec![0.25];
+            let min_impulse_size_values = vec![20.0];
+            let breakout_threshold_values = vec![2.0];
+
+            let combinations = sweep::generate_combinations(
+                &min_delta_values,
+                &max_lvn_ratio_values,
+                &min_impulse_size_values,
+                &min_impulse_score_values,
+                &take_profit_values,
+                &trailing_stop_values,
+                &stop_buffer_values,
+                &breakout_threshold_values,
+                &max_hunting_bars_values,
+            );
+
+            println!("═══════════════════════════════════════════════════════════");
+            println!("              PARAMETER SWEEP                              ");
+            println!("═══════════════════════════════════════════════════════════");
+            println!();
+            println!("Parameters:");
+            println!("  min_delta: {:?}", min_delta_values);
+            println!("  trailing_stop: {:?}", trailing_stop_values);
+            println!("  take_profit: {:?}", take_profit_values);
+            println!("  stop_buffer: {:?}", stop_buffer_values);
+            println!("  max_hunting_bars: {:?}", max_hunting_bars_values);
+            println!("  min_impulse_score: {:?}", min_impulse_score_values);
+            println!();
+            println!("Total combinations: {}", combinations.len());
+            println!("Trading hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
+            println!();
+
+            sweep::run_sweep(
+                cache_dir,
+                output,
+                combinations,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+            )?;
         }
     }
 

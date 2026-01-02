@@ -25,6 +25,7 @@ use ibapi::Client as IbClient;
 
 use crate::bars::Bar;
 use crate::trades::{Trade, Side};
+use hitthebid::topstepx::TopstepExecutor;
 use super::ib_execution::{IbConfig, IbOrderManager, create_nq_contract_with_symbol};
 use super::lvn_retest::Direction;
 use super::trader::{LiveConfig, LiveTrader, TradeAction};
@@ -668,4 +669,311 @@ fn load_daily_levels_from_cache(cache_dir: &std::path::Path) -> Result<LiveDaily
         session_high: high,
         session_low: low,
     })
+}
+
+/// Live trading with Databento data + TopstepX execution
+pub async fn run_topstep_mode(
+    api_key: String,
+    contract_symbol: String,
+    config: LiveConfig,
+    sm_config: StateMachineConfig,
+    mut executor: TopstepExecutor,
+    trade_log: std::path::PathBuf,
+) -> Result<()> {
+    use std::io::Write;
+    use hitthebid::topstepx::{Direction as TsDirection, TradeAction as TsTradeAction};
+
+    println!("═══════════════════════════════════════════════════════════");
+    println!("           TOPSTEP LIVE TRADING                            ");
+    println!("═══════════════════════════════════════════════════════════");
+    println!();
+    println!("📊 Data Source: Databento GLBX.MDP3");
+    println!("🏦 Execution: TopstepX API");
+    println!("📝 Trade Log: {:?}", trade_log);
+    println!("📈 Contract: {}", contract_symbol);
+    println!("⏰ Trading Hours: {:02}:{:02} - {:02}:{:02} ET",
+        config.start_hour, config.start_minute,
+        config.end_hour, config.end_minute
+    );
+    println!();
+
+    // Initialize trader with state machine
+    let mut trader = LiveTrader::new_with_state_machine(config.clone(), sm_config);
+
+    // Load daily levels from cache
+    info!("Loading daily levels from {:?}...", config.cache_dir);
+    match load_daily_levels_from_cache(&config.cache_dir) {
+        Ok(levels) => {
+            println!("✓ Loaded daily levels:");
+            println!("  PDH: {:.2}  PDL: {:.2}", levels.pdh, levels.pdl);
+            println!("  VAH: {:.2}  VAL: {:.2}", levels.vah, levels.val);
+            trader.set_daily_levels(levels);
+        }
+        Err(e) => {
+            warn!("Could not load daily levels: {}", e);
+        }
+    }
+
+    // Initialize trade log file
+    let mut log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&trade_log)
+        .context("Failed to open trade log file")?;
+
+    // Write header if file is empty
+    if log_file.metadata()?.len() == 0 {
+        writeln!(log_file, "timestamp,action,direction,price,stop,target,pnl_points,reason,executed")?;
+    }
+
+    // Connect to Databento
+    println!();
+    println!("Connecting to Databento...");
+
+    let mut databento_client = LiveClient::builder()
+        .key(api_key)?
+        .dataset("GLBX.MDP3")
+        .build()
+        .await
+        .context("Failed to connect to Databento")?;
+
+    let subscription = Subscription::builder()
+        .symbols(vec![contract_symbol.clone()])
+        .schema(Schema::Trades)
+        .stype_in(SType::RawSymbol)
+        .build();
+
+    databento_client.subscribe(subscription).await?;
+    databento_client.start().await?;
+
+    println!("✓ Connected to Databento");
+    println!();
+    println!("═══════════════════════════════════════════════════════════");
+    println!("                 TRADING ACTIVE                            ");
+    println!("═══════════════════════════════════════════════════════════");
+    println!();
+
+    // Track state
+    let mut bar_aggregator = BarAggregator::new(config.symbol.clone());
+    let mut trade_count = 0u64;
+    let mut bar_count = 0u64;
+    let mut signal_count = 0u32;
+    let mut last_status_time = std::time::Instant::now();
+
+    // Track P&L
+    let mut total_pnl = 0.0f64;
+    let mut wins = 0u32;
+    let mut losses = 0u32;
+
+    // Track RTH session
+    let mut rth_high = f64::NEG_INFINITY;
+    let mut rth_low = f64::INFINITY;
+    let mut last_rth_update_hour: Option<u32> = None;
+
+    // Process incoming trades
+    while let Some(record) = databento_client.next_record().await? {
+        if let Some(trade) = record.get::<TradeMsg>() {
+            trade_count += 1;
+
+            let is_buy = match trade.side as u8 {
+                b'A' | b'a' => true,
+                b'B' | b'b' => false,
+                _ => true,
+            };
+
+            let price = trade.price as f64 / 1_000_000_000.0;
+            let size = trade.size as u64;
+            let timestamp = DateTime::from_timestamp_nanos(trade.hd.ts_event as i64);
+
+            let utc_hour = timestamp.hour();
+            let et_hour = (utc_hour + 24 - 5) % 24;
+
+            // Track RTH high/low
+            if et_hour >= 9 && et_hour < 16 {
+                rth_high = rth_high.max(price);
+                rth_low = rth_low.min(price);
+            }
+
+            // Update evening levels
+            if et_hour == 17 && last_rth_update_hour != Some(17) && rth_high > f64::NEG_INFINITY {
+                let evening_levels = LiveDailyLevels {
+                    date: timestamp.date_naive(),
+                    pdh: rth_high,
+                    pdl: rth_low,
+                    onh: rth_high,
+                    onl: rth_low,
+                    vah: rth_high - (rth_high - rth_low) * 0.3,
+                    val: rth_low + (rth_high - rth_low) * 0.3,
+                    session_high: rth_high,
+                    session_low: rth_low,
+                };
+                trader.set_daily_levels(evening_levels);
+                println!("📊 Updated levels from RTH: PDH={:.2} PDL={:.2}", rth_high, rth_low);
+                last_rth_update_hour = Some(17);
+            }
+
+            // Feed trade to state machine if profiling
+            if trader.is_profiling_impulse() {
+                let side = if is_buy { Side::Buy } else { Side::Sell };
+                let trade_data = Trade {
+                    ts_event: timestamp,
+                    price,
+                    size,
+                    side,
+                    symbol: contract_symbol.clone(),
+                };
+                trader.process_trade(&trade_data);
+            }
+
+            // Aggregate into bars
+            if let Some(bar) = bar_aggregator.process_trade(timestamp, price, size, is_buy) {
+                bar_count += 1;
+
+                // Process bar through trader
+                if let Some(action) = trader.process_bar(&bar) {
+                    let now = chrono::Local::now().format("%H:%M:%S");
+
+                    match action {
+                        TradeAction::Enter { direction, price: entry_price, stop, target, contracts } => {
+                            signal_count += 1;
+
+                            let dir_str = if matches!(direction, Direction::Long) { "LONG" } else { "SHORT" };
+                            let dir_emoji = if matches!(direction, Direction::Long) { "🟢" } else { "🔴" };
+
+                            // Print signal
+                            println!();
+                            println!("╔═══════════════════════════════════════════════════════════╗");
+                            println!("║  {} SIGNAL #{}: {} @ {:.2}                      ║", dir_emoji, signal_count, dir_str, entry_price);
+                            println!("╠═══════════════════════════════════════════════════════════╣");
+                            println!("║  🎯 Entry:  {:.2}                                        ║", entry_price);
+                            println!("║  🛑 Stop:   {:.2}                                        ║", stop);
+                            println!("║  ✅ Target: {:.2}                                        ║", target);
+                            println!("║  📊 Delta:  {}                                           ║", bar.delta);
+                            println!("╚═══════════════════════════════════════════════════════════╝");
+
+                            // Convert to TopstepX types and execute
+                            let ts_direction = if matches!(direction, Direction::Long) {
+                                TsDirection::Long
+                            } else {
+                                TsDirection::Short
+                            };
+
+                            let ts_action = TsTradeAction::Enter {
+                                direction: ts_direction,
+                                price: entry_price,
+                                stop,
+                                target,
+                                contracts,
+                            };
+
+                            let executed = match executor.execute(ts_action).await {
+                                Ok(_) => {
+                                    println!("  ✅ ORDER EXECUTED via TopstepX | {}", now);
+                                    true
+                                }
+                                Err(e) => {
+                                    error!("  ❌ EXECUTION FAILED: {} | {}", e, now);
+                                    false
+                                }
+                            };
+                            println!();
+
+                            // Log to file
+                            writeln!(log_file, "{},{},{},{:.2},{:.2},{:.2},,{}",
+                                timestamp.format("%Y-%m-%d %H:%M:%S"),
+                                "ENTRY", dir_str, entry_price, stop, target, executed
+                            )?;
+                            log_file.flush()?;
+                        }
+                        TradeAction::Exit { direction, price: exit_price, pnl_points, reason } => {
+                            let dir_str = if matches!(direction, Direction::Long) { "LONG" } else { "SHORT" };
+
+                            total_pnl += pnl_points;
+
+                            // Execute exit via TopstepX
+                            let ts_direction = if matches!(direction, Direction::Long) {
+                                TsDirection::Long
+                            } else {
+                                TsDirection::Short
+                            };
+
+                            let ts_action = TsTradeAction::Exit {
+                                direction: ts_direction,
+                                price: exit_price,
+                                pnl_points,
+                                reason: reason.clone(),
+                            };
+
+                            let executed = match executor.execute(ts_action).await {
+                                Ok(_) => true,
+                                Err(e) => {
+                                    error!("Exit execution failed: {}", e);
+                                    false
+                                }
+                            };
+
+                            if pnl_points > 0.0 {
+                                wins += 1;
+                                println!("✅ EXIT {} @ {:.2} | +{:.2} pts | {} | Total: {:.2} pts | Exec: {}",
+                                    dir_str, exit_price, pnl_points, reason, total_pnl, executed);
+                            } else {
+                                losses += 1;
+                                println!("❌ EXIT {} @ {:.2} | {:.2} pts | {} | Total: {:.2} pts | Exec: {}",
+                                    dir_str, exit_price, pnl_points, reason, total_pnl, executed);
+                            }
+
+                            // Log to file
+                            writeln!(log_file, "{},{},{},{:.2},,,{:.2},{},{}",
+                                timestamp.format("%Y-%m-%d %H:%M:%S"),
+                                "EXIT", dir_str, exit_price, pnl_points, reason, executed
+                            )?;
+                            log_file.flush()?;
+                        }
+                        TradeAction::UpdateStop { new_stop } => {
+                            debug!("Updating stop to {:.2}", new_stop);
+                            let ts_action = TsTradeAction::UpdateStop { new_stop };
+                            if let Err(e) = executor.execute(ts_action).await {
+                                warn!("Failed to update stop: {}", e);
+                            }
+                        }
+                        TradeAction::FlattenAll { reason } => {
+                            println!("⚠️  FLATTEN ALL: {}", reason);
+                            let ts_action = TsTradeAction::FlattenAll { reason: reason.clone() };
+                            if let Err(e) = executor.execute(ts_action).await {
+                                error!("Failed to flatten: {}", e);
+                            }
+                            break;
+                        }
+                        TradeAction::SignalPending => {}
+                    }
+                }
+            }
+
+            // Status every 60 seconds
+            if last_status_time.elapsed() > std::time::Duration::from_secs(60) {
+                let pos_info = executor.position_info();
+                let pos_status = if pos_info.is_some() { "IN POSITION" } else { "FLAT" };
+                println!("📈 {} | Bars: {} | Signals: {} | W:{} L:{} | P&L: {:.2} pts",
+                    pos_status, bar_count, signal_count, wins, losses, total_pnl);
+
+                // Sync position state periodically
+                if let Err(e) = executor.sync_position().await {
+                    warn!("Position sync failed: {}", e);
+                }
+
+                last_status_time = std::time::Instant::now();
+            }
+        }
+    }
+
+    println!();
+    println!("═══════════════════════════════════════════════════════════");
+    println!("                    SESSION COMPLETE                        ");
+    println!("═══════════════════════════════════════════════════════════");
+    println!("Total Signals: {}", signal_count);
+    println!("Wins: {} | Losses: {}", wins, losses);
+    println!("Total P&L: {:.2} pts", total_pnl);
+    println!("Trade log saved to: {:?}", trade_log);
+
+    Ok(())
 }
