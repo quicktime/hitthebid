@@ -88,6 +88,16 @@ pub struct ExecutionConfig {
 
     /// Rithmic system name
     pub rithmic_system: String,
+
+    /// Rithmic account ID
+    pub rithmic_account_id: String,
+
+    /// Rithmic password (loaded from env)
+    #[serde(skip)]
+    pub rithmic_password: String,
+
+    /// Tick size for the instrument (NQ = 0.25, MNQ = 0.25)
+    pub tick_size: f64,
 }
 
 impl Default for ExecutionConfig {
@@ -112,11 +122,40 @@ impl Default for ExecutionConfig {
             rithmic_fcm_id: String::new(),
             rithmic_ib_id: String::new(),
             rithmic_system: "Rithmic Paper Trading".to_string(),
+            rithmic_account_id: String::new(),
+            rithmic_password: String::new(),
+            tick_size: 0.25,
         }
     }
 }
 
 impl ExecutionConfig {
+    /// Load Rithmic credentials from environment variables
+    pub fn from_env(mode: ExecutionMode) -> Result<Self, String> {
+        let prefix = match mode {
+            ExecutionMode::Simulation => return Ok(Self::default()),
+            ExecutionMode::Paper => "RITHMIC_DEMO",
+            ExecutionMode::Live => "RITHMIC_LIVE",
+        };
+
+        let get_env = |suffix: &str| -> Result<String, String> {
+            let var = format!("{}_{}", prefix, suffix);
+            std::env::var(&var).map_err(|_| format!("Missing environment variable: {}", var))
+        };
+
+        Ok(Self {
+            mode,
+            rithmic_env: if mode == ExecutionMode::Paper { "Demo".to_string() } else { "Live".to_string() },
+            rithmic_user: get_env("USER")?,
+            rithmic_password: get_env("PW")?,
+            rithmic_fcm_id: get_env("FCM_ID")?,
+            rithmic_ib_id: get_env("IB_ID")?,
+            rithmic_account_id: get_env("ACCOUNT_ID")?,
+            rithmic_system: std::env::var(format!("{}_SYSTEM", prefix))
+                .unwrap_or_else(|_| "Rithmic Paper Trading".to_string()),
+            ..Default::default()
+        })
+    }
     /// Create config for MFF 30K Static Pro account (2 NQ max)
     pub fn mff_static_pro() -> Self {
         Self {

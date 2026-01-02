@@ -1079,6 +1079,102 @@ enum Commands {
         max_retrace_ratio: f64,
     },
 
+    /// Live trading with Rithmic API (Optimus Futures, etc.)
+    RithmicLive {
+        /// Trading mode: "paper" (demo) or "live"
+        #[arg(long, default_value = "paper")]
+        mode: String,
+
+        /// Contract symbol (e.g., MNQH6 for Micro NQ March 2026)
+        #[arg(long, default_value = "MNQH6")]
+        contract_symbol: String,
+
+        /// Output file for trade log (CSV format)
+        #[arg(long, default_value = "trades.csv")]
+        trade_log: PathBuf,
+
+        /// Number of contracts
+        #[arg(long, default_value = "1")]
+        contracts: i32,
+
+        /// Cache directory for LVN levels
+        #[arg(short, long, default_value = "cache_2025")]
+        cache_dir: PathBuf,
+
+        /// Take profit in points (0 = trailing stop only)
+        #[arg(long, default_value = "0")]
+        take_profit: f64,
+
+        /// Trailing stop distance in points
+        #[arg(long, default_value = "4")]
+        trailing_stop: f64,
+
+        /// Stop buffer beyond LVN level in points
+        #[arg(long, default_value = "2.0")]
+        stop_buffer: f64,
+
+        /// Trading start hour (ET, 24h format)
+        #[arg(long, default_value = "9")]
+        start_hour: u32,
+
+        /// Trading start minute
+        #[arg(long, default_value = "30")]
+        start_minute: u32,
+
+        /// Trading end hour (ET, 24h format)
+        #[arg(long, default_value = "16")]
+        end_hour: u32,
+
+        /// Trading end minute
+        #[arg(long, default_value = "0")]
+        end_minute: u32,
+
+        /// Minimum delta for signal
+        #[arg(long, default_value = "150")]
+        min_delta: i64,
+
+        /// Starting balance for tracking
+        #[arg(long, default_value = "500")]
+        starting_balance: f64,
+
+        /// Max losing trades per day
+        #[arg(long, default_value = "3")]
+        max_daily_losses: i32,
+
+        /// Daily loss limit in points
+        #[arg(long, default_value = "50")]
+        daily_loss_limit: f64,
+
+        /// Point value per tick (MNQ = $0.50, NQ = $5)
+        #[arg(long, default_value = "0.50")]
+        point_value: f64,
+
+        // State Machine Parameters
+        /// Breakout threshold in points
+        #[arg(long, default_value = "2.0")]
+        breakout_threshold: f64,
+
+        /// Minimum impulse size in points
+        #[arg(long, default_value = "25")]
+        min_impulse_size: f64,
+
+        /// Minimum impulse score
+        #[arg(long, default_value = "3")]
+        min_impulse_score: u8,
+
+        /// Maximum bars for impulse profiling
+        #[arg(long, default_value = "200")]
+        max_impulse_bars: usize,
+
+        /// Maximum bars to hunt for retest
+        #[arg(long, default_value = "1800")]
+        max_hunting_bars: usize,
+
+        /// Maximum retrace ratio
+        #[arg(long, default_value = "0.7")]
+        max_retrace_ratio: f64,
+    },
+
     /// Test Databento live data feed (no trading, just displays data)
     DatabentoTest {
         /// Symbol to subscribe to (e.g., NQH6 for March 2026 NQ)
@@ -1943,6 +2039,110 @@ async fn main() -> Result<()> {
                 config,
                 sm_config,
                 executor,
+                trade_log,
+            ).await?;
+        }
+        Commands::RithmicLive {
+            mode, contract_symbol, trade_log, contracts, cache_dir, take_profit, trailing_stop, stop_buffer,
+            start_hour, start_minute, end_hour, end_minute,
+            min_delta, starting_balance, max_daily_losses, daily_loss_limit, point_value,
+            breakout_threshold, min_impulse_size, min_impulse_score,
+            max_impulse_bars, max_hunting_bars, max_retrace_ratio,
+        } => {
+            use hitthebid::execution::{ExecutionConfig, ExecutionMode, RithmicConnection};
+
+            println!("═══════════════════════════════════════════════════════════");
+            println!("           RITHMIC LIVE TRADING                             ");
+            println!("═══════════════════════════════════════════════════════════");
+            println!();
+            println!("Mode: {}", mode);
+            println!("Symbol: {}", contract_symbol);
+            println!("Contracts: {}", contracts);
+            println!("Point Value: ${:.2}/tick", point_value);
+            println!("Trading Hours: {:02}:{:02} - {:02}:{:02} ET", start_hour, start_minute, end_hour, end_minute);
+            println!();
+
+            let databento_key = std::env::var("DATABENTO_API_KEY")
+                .context("DATABENTO_API_KEY not set")?;
+
+            // Determine execution mode
+            let exec_mode = match mode.to_lowercase().as_str() {
+                "paper" | "demo" => ExecutionMode::Paper,
+                "live" => ExecutionMode::Live,
+                _ => {
+                    anyhow::bail!("Invalid mode '{}'. Use 'paper' or 'live'", mode);
+                }
+            };
+
+            // Create execution config from environment
+            let exec_config = ExecutionConfig::from_env(exec_mode)
+                .map_err(|e| anyhow::anyhow!("Failed to load Rithmic config: {}", e))?;
+
+            info!("Execution mode: {:?}", exec_mode);
+
+            // Create Rithmic connection
+            let mut rithmic_conn = RithmicConnection::new(exec_config);
+            rithmic_conn.connect().await
+                .context("Failed to connect to Rithmic")?;
+
+            info!("Connected to Rithmic - ready for trading");
+
+            // Extract base symbol (e.g., MNQ from MNQH6)
+            let base_symbol = if contract_symbol.starts_with("MNQ") {
+                "MNQ"
+            } else if contract_symbol.starts_with("NQ") {
+                "NQ"
+            } else if contract_symbol.starts_with("MYM") {
+                "MYM"
+            } else if contract_symbol.starts_with("YM") {
+                "YM"
+            } else {
+                &contract_symbol[..contract_symbol.len().saturating_sub(2)]
+            };
+
+            let config = trader::LiveConfig {
+                symbol: base_symbol.to_string(),
+                exchange: "CME".to_string(),
+                contracts,
+                cache_dir,
+                take_profit,
+                trailing_stop,
+                stop_buffer,
+                start_hour,
+                start_minute,
+                end_hour,
+                end_minute,
+                min_delta,
+                max_lvn_ratio: 0.4,
+                level_tolerance: 3.0,
+                starting_balance,
+                max_daily_losses,
+                daily_loss_limit,
+                point_value,
+                slippage: 0.0,
+                commission: 0.0,
+                max_win_cap: 0.0,
+                volatility_slippage_factor: 0.0,
+                outlier_threshold: 0.0,
+            };
+
+            let sm_config = state_machine::StateMachineConfig {
+                breakout_threshold,
+                min_impulse_size,
+                min_impulse_score,
+                max_impulse_bars,
+                max_hunting_bars,
+                max_retrace_ratio,
+                min_bars_before_switch: 60,
+            };
+
+            // Run with Rithmic execution
+            databento_ib_live::run_rithmic_mode(
+                databento_key,
+                contract_symbol,
+                config,
+                sm_config,
+                rithmic_conn,
                 trade_log,
             ).await?;
         }
