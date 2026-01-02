@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <RootNamespace>LvnStrategy</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Databento C# client for live market data -->
+    <PackageReference Include="Databento.Client" Version="5.1.4" />
+
+    <!-- JSON serialization -->
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <!--
+    Quantower SDK References (from Optimus Flow installation)
+    Uncomment and update paths when integrating with Optimus Flow:
+
+    <ItemGroup>
+      <Reference Include="TradingPlatform.BusinessLayer">
+        <HintPath>C:\Program Files\Optimus Flow\TradingPlatform.BusinessLayer.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+  -->
+
+</Project>
